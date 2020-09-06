@@ -4,3 +4,8 @@ __pycache__/
 data/
 .vscode/
 .ipynb_checkpoints/
+
+/node_modules/
+/public/build/
+
+.DS_Store
