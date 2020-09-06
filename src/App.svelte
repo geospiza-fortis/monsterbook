@@ -1,7 +1,10 @@
 <script>
-  import page_00 from "./assets/reference/00_red_0.png";
-  import entries from "./assets/entries/entries.txt";
+  import { reference, empty, seed_tags, entries } from "./assets.js";
 </script>
 
-<img src={page_00} />
+<h1>Monsterbook Transcription</h1>
+
+<img src={reference[0]} />
+<img src={empty} />
+<img src={seed_tags[0]} />
 <pre>{entries}</pre>
