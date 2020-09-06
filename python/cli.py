@@ -98,8 +98,8 @@ def reference_book(source, output, overwrite):
 @click.option("--output", default=str(ROOT / "data" / "processed" / "empty"))
 @click.option("--overwrite/--no-overwrite", default=True)
 def empty_card(reference, output, overwrite):
-    reference = Path(reference)
-    output = Path(output)
+    reference = Path(reference).resolve()
+    output = Path(output).resolve()
     mkdir(output, overwrite)
 
     # get the last card of the first page
