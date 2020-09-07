@@ -3,7 +3,7 @@
   import { transcribe } from "./book.js";
   import { readDataAsync } from "./image.js";
 
-  let displayTable = true;
+  let displayCards = false;
   let displayDone = false;
   let displaySort = "uid";
 
@@ -69,7 +69,28 @@
   }
 </style>
 
-<h1>Monsterbook Transcription</h1>
+<h1>Monster Book Transcription (WIP)</h1>
+
+<p>
+  This app transcribes in-game screenshots of the Monster Book in MapleLegends
+  to help plan and track card hunting. All processing occurs on-device and can
+  be run offline.
+</p>
+
+<p>
+  This is a work in progress. Only screenshots taken on macOS via Cmd-Shift-4 on
+  the default resolution are supported. Screenshots should be 1824x1468.
+</p>
+
+<p>
+  The source code can be found on Github at <a
+    href="https://github.com/geospiza-fortis/monsterbook">geospiza-fortis/monsterbook</a>.
+  The monster and map information is taken from the <a
+    href="https://forum.maplelegends.com/index.php?threads/monster-book-efficient-farming-guide.23984">Monster
+    Book Efficient Farming Guide</a> by Precel and Bambo (<a
+    href="https://docs.google.com/spreadsheets/d/1ohipSCqwiyyOdqNTWrTzDNGUtYJOojfk9qbVHSl70l0/edit#gid=1847158424">
+    link</a>).
+</p>
 
 <form on:submit={handleTranscribe}>
   <input id="fileInput" type="file" accept="image/png" name="file[]" multiple />
@@ -85,13 +106,24 @@
   </p>
 {/if}
 
-<label><input type="checkbox" bind:checked={displayTable} /> Display as table</label>
-<label><input type="checkbox" bind:checked={displayDone} /> Display finished sets</label>
-Default Sort <br />
-{#each displaySortOptions as value}
-  <label><input type="radio" {value} bind:group={displaySort} />{value}</label>
-{/each}
-{#if displayTable}
+<h2>Options</h2>
+<div>
+  <div>
+    <label><input type="checkbox" bind:checked={displayCards} /> Display grid of
+      cards</label>
+    <label><input type="checkbox" bind:checked={displayDone} /> Display finished
+      sets</label>
+  </div>
+  <div>
+    <b>Default Sort</b>
+    {#each displaySortOptions as value}
+      <label><input type="radio" {value} bind:group={displaySort} />{value}</label>
+    {/each}
+  </div>
+</div>
+
+<h2>Book</h2>
+{#if !displayCards}
   {#if data}
     <table>
       <tr>
