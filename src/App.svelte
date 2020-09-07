@@ -12,8 +12,6 @@
   } from "./image.js";
   import { onMount } from "svelte";
 
-  let canvas;
-
   async function crop(dataUrl) {
     // TODO: adapt this for all resolutions and non-macs
     return await cropImage(dataUrl, 412, 862, 569, 899);
@@ -135,6 +133,7 @@
     };
   }
 
+  let displayTable = true;
   let files = [];
   let progress = 0;
   let total = 0;
@@ -160,11 +159,23 @@
     await appendToFiles(fileInput.files);
   }
 
-  onMount(async () => {
-    canvas = await canvasFromImage(reference[0]);
-    sobel(rgb2gray(canvas));
-  });
+  onMount(async () => {});
 </script>
+
+<style>
+  .wrapper {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+  }
+  table {
+    border-collapse: collapse;
+  }
+  table,
+  th,
+  td {
+    border: 1px solid black;
+  }
+</style>
 
 <h1>Monsterbook Transcription</h1>
 
@@ -173,7 +184,7 @@
   <input type="submit" value="Transcribe" />
 </form>
 
-{#if total > 0}
+<input type="checkbox" bind:checked={displayTable} /> Display as table {#if total > 0}
   <p>
     {#if progress < total}
       Processing {progress}/{total}
@@ -182,18 +193,35 @@
   </p>
 {/if}
 
-{#each files as file}
-  {#each file.cards as card}<img src={card} />{/each}
-  <pre>{JSON.stringify(file.metadata)}</pre>
-  <pre>{JSON.stringify(file.data)}</pre>
-  <br />
-{/each}
-
-{#if false}
-  <h2>Debugging stuff</h2>
-  {#if canvas}<img src={canvas.toDataURL()} />{/if}
-  <img src={reference[0]} />
-  <img src={empty} />
-  <img src={seed_tags[0]} />
-  <pre>{entries}</pre>
+{#if displayTable}
+  <table>
+    <tr>
+      <th>uid</th>
+      <th>name</th>
+      <th>collected</th>
+    </tr>
+    {#each files as file}
+      {#each file.data as datum}
+        <tr>
+          <td>{datum.uid}</td>
+          <td>{datum.name}</td>
+          <td>{datum.count}</td>
+        </tr>
+      {/each}
+    {/each}
+  </table>
+{:else}
+  <div class="wrapper">
+    {#each files as file}
+      {#each file.cards as card, i}
+        <div>
+          <img src={card} />
+          <br /> uid: {file.data[i].uid}
+          <br /> name: {file.data[i].name}
+          <br /> count: {file.data[i].count}
+          <br />
+        </div>
+      {/each}
+    {/each}
+  </div>
 {/if}
