@@ -245,3 +245,8 @@ def transcribe(source, output, reference, entries, seed_tags, empty, overwrite):
     mkdir(output, overwrite)
     with (output / "out.json").open("w") as fp:
         json.dump({"data": data}, fp, indent=2)
+
+
+@monsterbook.command()
+def book_metadata():
+    print(json.dumps(page_metadata(), indent=2))
