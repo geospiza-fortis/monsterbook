@@ -1,4 +1,5 @@
-import { reference, empty, seed_tags, entries } from "./assets.js";
+import { reference, empty, seed_tags } from "./assets.js";
+import { monsters } from "./monsters.js";
 import { metadata, offsets } from "./metadata.js";
 import {
   readImageAsync,
@@ -83,8 +84,8 @@ async function transcribe(dataUrl) {
     }
     let data = {
       uid: offsets[index] + i,
-      name: entries[offsets[index] + i],
       count: value,
+      ...monsters[offsets[index] + i],
     };
     cardData.push(data);
   }

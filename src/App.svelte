@@ -4,6 +4,8 @@
   import { readDataAsync } from "./image.js";
 
   let displayTable = true;
+  let displayDone = false;
+
   let files = [];
   let progress = 0;
   let total = 0;
@@ -54,7 +56,9 @@
   <input type="submit" value="Transcribe" />
 </form>
 
-<input type="checkbox" bind:checked={displayTable} /> Display as table {#if total > 0}
+<input type="checkbox" bind:checked={displayTable} /> Display as table <br />
+<input type="checkbox" bind:checked={displayDone} /> Display finished sets <br />
+{#if total > 0}
   <p>
     {#if progress < total}
       Processing {progress}/{total}
@@ -69,14 +73,20 @@
       <th>uid</th>
       <th>name</th>
       <th>collected</th>
+      <th>most efficient map</th>
+      <th>town</th>
     </tr>
     {#each files as file}
       {#each file.data as datum}
-        <tr>
-          <td>{datum.uid}</td>
-          <td>{datum.name}</td>
-          <td>{datum.count}</td>
-        </tr>
+        {#if !(!displayDone && datum.count === 5)}
+          <tr>
+            <td>{datum.uid}</td>
+            <td>{datum.name}</td>
+            <td>{datum.count}</td>
+            <td>{datum.map}</td>
+            <td>{datum.town}</td>
+          </tr>
+        {/if}
       {/each}
     {/each}
   </table>
@@ -84,13 +94,15 @@
   <div class="wrapper">
     {#each files as file}
       {#each file.cards as card, i}
-        <div>
-          <img src={card} alt={file.data[i].name} />
-          <br /> uid: {file.data[i].uid}
-          <br /> name: {file.data[i].name}
-          <br /> count: {file.data[i].count}
-          <br />
-        </div>
+        {#if !(!displayDone && file.data[i].count === 5)}
+          <div>
+            <img src={card} alt={file.data[i].name} />
+            <br /> uid: {file.data[i].uid}
+            <br /> name: {file.data[i].name}
+            <br /> count: {file.data[i].count}
+            <br />
+          </div>
+        {/if}
       {/each}
     {/each}
   </div>
