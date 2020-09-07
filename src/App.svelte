@@ -11,13 +11,16 @@
     cropImage,
   } from "./image.js";
   import { onMount } from "svelte";
-  import { claim_text } from "svelte/internal";
 
   let canvas;
 
   async function crop(dataUrl) {
     // TODO: adapt this for all resolutions and non-macs
     return await cropImage(dataUrl, 412, 862, 569, 899);
+  }
+
+  async function crop_tag(dataUrl) {
+    return await cropImage(dataUrl, 62, 80, 11, 23);
   }
 
   async function crop_cards(dataUrl) {
@@ -57,19 +60,22 @@
       // for consistency with the python code, we deal with numbers betwen 0-255
       acc += Math.pow(dataA[i] - dataB[i], 2);
     }
-    return acc / (w * h);
+    return parseInt(acc / (w * h));
   }
 
-  async function match(test, images) {
-    let testCanvas = await canvasFromImage(test);
-    let diffs = images.map(async (img) =>
-      mse(testCanvas, await canvasFromImage(img))
-    );
-    let index = diffs.indexOf(Math.min(diffs));
+  async function match(test, images, imageFilter = (x) => x) {
+    let testCanvas = imageFilter(await canvasFromImage(test));
+    let diffs = [];
+    for (let i = 0; i < images.length; i++) {
+      let refCanvas = imageFilter(await canvasFromImage(images[i]));
+      let diff = mse(testCanvas, refCanvas);
+      diffs.push(diff);
+    }
+    let index = diffs.indexOf(Math.min.apply(null, diffs));
+    // also return the diffs?
+    // console.log(diffs);
     return index;
   }
-
-  function crop_tag() {}
 
   async function filter_cards(cards, threshold) {
     let emptyCanvas = rgb2gray(await canvasFromImage(empty));
@@ -77,7 +83,7 @@
     for (let i = 0; i < cards.length; i++) {
       let cardCanvas = rgb2gray(await canvasFromImage(cards[i]));
       let err = mse(cardCanvas, emptyCanvas);
-      console.log(err);
+      // console.log(err);
       if (err > threshold) {
         res.push(cards[i]);
       }
@@ -85,7 +91,49 @@
     return res;
   }
 
-  function transcribe() {}
+  async function transcribe(dataUrl) {
+    const empty_threshold = 100;
+    const unseen_threshold = 5000;
+
+    let uncropped = await readImageAsync(dataUrl);
+    let img = await crop(dataUrl);
+
+    // match this against one of the existing files
+    let index = await match(img, reference, (canvas) =>
+      sobel(rgb2gray(canvas))
+    );
+
+    let cards = await crop_cards(img);
+    // TODO: what is the correct threshold here? I don't want to pull in a new dependency
+    // to rigorously determine the threshold.
+    let filtered = await filter_cards(cards, empty_threshold);
+
+    // determine the appropriate tag for each one
+    let cardData = [];
+    let emptyCanvas = await canvasFromImage(empty);
+    for (let i = 0; i < filtered.length; i++) {
+      let tag = await crop_tag(filtered[i]);
+      let value = 0;
+      let err = mse(await canvasFromImage(tag), emptyCanvas, rgb2gray);
+      // console.log(err);
+      if (err > unseen_threshold) {
+        value = (await match(tag, seed_tags)) + 1;
+      }
+      let data = {
+        uid: offsets[index] + i,
+        name: entries[offsets[index] + i],
+        count: value,
+      };
+      cardData.push(data);
+    }
+
+    return {
+      img: img,
+      cards: filtered,
+      data: cardData,
+      metadata: metadata[index],
+    };
+  }
 
   let files = [];
   let progress = 0;
@@ -98,14 +146,9 @@
     for (let i = 0; i < filelist.length; i++) {
       progress = i;
       let file = filelist[i];
-
       let dataUrl = await readDataAsync(file);
-      let uncropped = await readImageAsync(dataUrl);
-      let img = await crop(dataUrl);
-      let cards = await crop_cards(img);
-      // TODO: what is the correct threshold here? I don't want to pull in a new dependency.
-      let filtered = await filter_cards(cards, 100);
-      files.push({ img: img, cards: filtered });
+      let transcribed = await transcribe(dataUrl);
+      files.push(transcribed);
     }
     files = files;
     progress = total;
@@ -141,11 +184,16 @@
 
 {#each files as file}
   {#each file.cards as card}<img src={card} />{/each}
+  <pre>{JSON.stringify(file.metadata)}</pre>
+  <pre>{JSON.stringify(file.data)}</pre>
+  <br />
 {/each}
 
-<h2>Debugging stuff</h2>
-{#if canvas}<img src={canvas.toDataURL()} />{/if}
-<img src={reference[0]} />
-<img src={empty} />
-<img src={seed_tags[0]} />
-<pre>{entries}</pre>
+{#if false}
+  <h2>Debugging stuff</h2>
+  {#if canvas}<img src={canvas.toDataURL()} />{/if}
+  <img src={reference[0]} />
+  <img src={empty} />
+  <img src={seed_tags[0]} />
+  <pre>{entries}</pre>
+{/if}

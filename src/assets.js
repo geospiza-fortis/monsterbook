@@ -26,7 +26,7 @@ import seed_02 from "./assets/seed_tags/3.png";
 import seed_03 from "./assets/seed_tags/4.png";
 import seed_04 from "./assets/seed_tags/5.png";
 import empty from "./assets/empty/empty.png";
-import entries from "./assets/entries/entries.txt";
+import entries_text from "./assets/entries/entries.txt";
 
 const reference = [
   reference_00,
@@ -53,5 +53,6 @@ const reference = [
   reference_21,
 ];
 const seed_tags = [seed_00, seed_01, seed_02, seed_03, seed_04];
+const entries = entries_text.split("\n");
 
 export { reference, empty, seed_tags, entries };
