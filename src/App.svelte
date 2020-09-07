@@ -5,11 +5,30 @@
 
   let displayTable = true;
   let displayDone = false;
+  let displaySort = "uid";
+
+  const displaySortOptions = ["uid", "tour_order", "collected"];
+  const displaySortFunc = {
+    uid: (a, b) => a.uid - b.uid,
+    tour_order: (a, b) => a.tour_order - b.tour_order || a.uid - b.uid,
+    collected: (a, b) =>
+      b.count - a.count || a.tour_order - b.tour_order || a.uid - b.uid,
+  };
 
   let files = [];
   let progress = 0;
   let total = 0;
   let error = 0;
+  $: data = flattenData(files, displaySort);
+
+  function flattenData(files, displaySort) {
+    let res = [];
+    for (let i = 0; i < files.length; i++) {
+      res = res.concat(files[i].data);
+    }
+    res.sort(displaySortFunc[displaySort]);
+    return res;
+  }
 
   async function appendToFiles(filelist) {
     error = 0;
@@ -19,6 +38,7 @@
       let file = filelist[i];
       let dataUrl = await readDataAsync(file);
       let transcribed = await transcribe(dataUrl);
+      // TODO: handle duplicates
       files.push(transcribed);
     }
     files = files;
@@ -56,8 +76,6 @@
   <input type="submit" value="Transcribe" />
 </form>
 
-<input type="checkbox" bind:checked={displayTable} /> Display as table <br />
-<input type="checkbox" bind:checked={displayDone} /> Display finished sets <br />
 {#if total > 0}
   <p>
     {#if progress < total}
@@ -67,17 +85,24 @@
   </p>
 {/if}
 
+<label><input type="checkbox" bind:checked={displayTable} /> Display as table</label>
+<label><input type="checkbox" bind:checked={displayDone} /> Display finished sets</label>
+Default Sort <br />
+{#each displaySortOptions as value}
+  <label><input type="radio" {value} bind:group={displaySort} />{value}</label>
+{/each}
 {#if displayTable}
-  <table>
-    <tr>
-      <th>uid</th>
-      <th>name</th>
-      <th>collected</th>
-      <th>most efficient map</th>
-      <th>town</th>
-    </tr>
-    {#each files as file}
-      {#each file.data as datum}
+  {#if data}
+    <table>
+      <tr>
+        <th>uid</th>
+        <th>name</th>
+        <th>collected</th>
+        <th>most efficient map</th>
+        <th>town</th>
+        <th>tour order</th>
+      </tr>
+      {#each data as datum}
         {#if !(!displayDone && datum.count === 5)}
           <tr>
             <td>{datum.uid}</td>
@@ -85,11 +110,12 @@
             <td>{datum.count}</td>
             <td>{datum.map}</td>
             <td>{datum.town}</td>
+            <td>{datum.tour_order}</td>
           </tr>
         {/if}
       {/each}
-    {/each}
-  </table>
+    </table>
+  {/if}
 {:else}
   <div class="wrapper">
     {#each files as file}
