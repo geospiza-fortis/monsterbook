@@ -42,11 +42,48 @@
     return cards;
   }
 
-  function match(test, images) {}
+  // NOTE: tihs is quite a few canvas calls...
+  function mse(canvasA, canvasB) {
+    // the mean-squared error
+    // assume both canvases are the same size
+    let w = canvasA.width;
+    let h = canvasA.height;
+    let dataA = canvasA.getContext("2d").getImageData(0, 0, w, h).data;
+    let dataB = canvasB.getContext("2d").getImageData(0, 0, w, h).data;
+
+    // only need to compare a single channel of the image
+    let acc = 0;
+    for (let i = 0; i < dataA.length; i += 4) {
+      // for consistency with the python code, we deal with numbers betwen 0-255
+      acc += Math.pow(dataA[i] - dataB[i], 2);
+    }
+    return acc / (w * h);
+  }
+
+  async function match(test, images) {
+    let testCanvas = await canvasFromImage(test);
+    let diffs = images.map(async (img) =>
+      mse(testCanvas, await canvasFromImage(img))
+    );
+    let index = diffs.indexOf(Math.min(diffs));
+    return index;
+  }
 
   function crop_tag() {}
 
-  function filter_cards() {}
+  async function filter_cards(cards, threshold) {
+    let emptyCanvas = rgb2gray(await canvasFromImage(empty));
+    let res = [];
+    for (let i = 0; i < cards.length; i++) {
+      let cardCanvas = rgb2gray(await canvasFromImage(cards[i]));
+      let err = mse(cardCanvas, emptyCanvas);
+      console.log(err);
+      if (err > threshold) {
+        res.push(cards[i]);
+      }
+    }
+    return res;
+  }
 
   function transcribe() {}
 
@@ -66,7 +103,9 @@
       let uncropped = await readImageAsync(dataUrl);
       let img = await crop(dataUrl);
       let cards = await crop_cards(img);
-      files.push({ img: img, cards: cards });
+      // TODO: what is the correct threshold here? I don't want to pull in a new dependency.
+      let filtered = await filter_cards(cards, 100);
+      files.push({ img: img, cards: filtered });
     }
     files = files;
     progress = total;
