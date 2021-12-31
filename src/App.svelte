@@ -12,7 +12,7 @@
     uid: (a, b) => a.uid - b.uid,
     tour_order: (a, b) => a.tour_order - b.tour_order || a.uid - b.uid,
     collected: (a, b) =>
-      b.count - a.count || a.tour_order - b.tour_order || a.uid - b.uid
+      b.count - a.count || a.tour_order - b.tour_order || a.uid - b.uid,
   };
 
   let files = [];
@@ -54,31 +54,6 @@
   onMount(async () => {});
 </script>
 
-<style>
-  .content {
-    margin: 0 auto;
-    max-width: 800px;
-  }
-  @media (max-width: 800px) {
-    .content {
-      padding: 0 0.5rem;
-    }
-  }
-
-  table {
-    margin-left: auto;
-    margin-right: auto;
-    border-collapse: collapse;
-  }
-  table,
-  th,
-  td {
-    border: 1px solid black;
-    padding-left: 5px;
-    padding-right: 5px;
-  }
-</style>
-
 <div class="content">
   <h1>Monster Book Transcription (WIP)</h1>
 
@@ -103,12 +78,14 @@
     </a>
     . The monster and map information is taken from the
     <a
-      href="https://forum.maplelegends.com/index.php?threads/monster-book-efficient-farming-guide.23984">
+      href="https://forum.maplelegends.com/index.php?threads/monster-book-efficient-farming-guide.23984"
+    >
       Monster Book Efficient Farming Guide
     </a>
     by Precel and Bambo (
     <a
-      href="https://docs.google.com/spreadsheets/d/1ohipSCqwiyyOdqNTWrTzDNGUtYJOojfk9qbVHSl70l0/edit#gid=1847158424">
+      href="https://docs.google.com/spreadsheets/d/1ohipSCqwiyyOdqNTWrTzDNGUtYJOojfk9qbVHSl70l0/edit#gid=1847158424"
+    >
       link
     </a>
     ).
@@ -120,7 +97,8 @@
       type="file"
       accept="image/png"
       name="file[]"
-      multiple />
+      multiple
+    />
     <input type="submit" value="Transcribe" />
   </form>
 
@@ -192,3 +170,28 @@
     {/each}
   </table>
 {/if}
+
+<style>
+  .content {
+    margin: 0 auto;
+    max-width: 800px;
+  }
+  @media (max-width: 800px) {
+    .content {
+      padding: 0 0.5rem;
+    }
+  }
+
+  table {
+    margin-left: auto;
+    margin-right: auto;
+    border-collapse: collapse;
+  }
+  table,
+  th,
+  td {
+    border: 1px solid black;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+</style>
