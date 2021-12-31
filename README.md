@@ -4,9 +4,13 @@
 
 ### bootstrapping
 
-We'll generate the assets necessary for the web application by looking at two sets of monsterbook entries.
+We'll generate the assets necessary for the web application by looking at two
+sets of monsterbook entries.
 
-Create the working data directory at the root of the application. Under `data/raw/reference`, add uncropped in-game screenshots taken in order of colors from a character that has collected few cards. There should be 22 pages. The monsterbook that is going to be transcribed is placed under `data/raw/main`.
+Create the working data directory at the root of the application. Under
+`data/raw/reference`, add uncropped in-game screenshots taken in order of colors
+from a character that has collected few cards. There should be 22 pages. The
+monsterbook that is going to be transcribed is placed under `data/raw/main`.
 
 ```bash
 # set up python
@@ -49,9 +53,13 @@ npm install
 npm run dev
 ```
 
-Navigate to [localhost:5000](http://localhost:5000). You should see your app running. Edit a component file in `src`, save it, and reload the page to see your changes.
+Navigate to [localhost:5000](http://localhost:5000). You should see your app
+running. Edit a component file in `src`, save it, and reload the page to see
+your changes.
 
-By default, the server will only respond to requests from localhost. To allow connections from other computers, edit the `sirv` commands in package.json to include the option `--host 0.0.0.0`.
+By default, the server will only respond to requests from localhost. To allow
+connections from other computers, edit the `sirv` commands in package.json to
+include the option `--host 0.0.0.0`.
 
 #### Building and running in production mode
 

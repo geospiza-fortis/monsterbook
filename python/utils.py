@@ -7,7 +7,7 @@ CROP_SHAPE = (225, 165)
 
 
 def imread(path):
-    return mpimg.imread(path)
+    return mpimg.imread(path, format="jpeg")
 
 
 def imshow(img):
@@ -77,9 +77,9 @@ def crop_tag_win(card):
 
 def crop_tag(img):
     if img.shape[:2] != (45, 33):
-        return crop_mac_tag(img)
+        return crop_tag_mac(img)
     else:
-        return crop_win(img)
+        return crop_tag_win(img)
 
 
 def sobel_filter(img):
