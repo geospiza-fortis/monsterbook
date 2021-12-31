@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // it's totally possible that the image is poorly formatted, so we
             // guess the type
             let img = crop::imread(source)?;
-            let cropped = crop::crop(img);
+            let cropped = crop::crop(img)?;
             crop::imsave(output, cropped)?;
         }
         Commands::ReferenceBook {
