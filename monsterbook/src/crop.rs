@@ -1,7 +1,8 @@
-use image::{imageops, io, ImageBuffer, ImageError, Rgba};
+use convolve2d::{convolve2d, SubPixels};
+use image::{imageops, io, GrayImage, ImageBuffer, ImageError, Rgba};
 use imageproc::template_matching;
-use std::path::PathBuf;
 use std::io::Cursor;
+use std::path::PathBuf;
 
 type Image = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
@@ -21,7 +22,7 @@ pub fn imsave(output: &PathBuf, img: Image) -> Result<(), ImageError> {
 }
 
 fn get_reference_page() -> Result<Image, ImageError> {
-    let reference_bytes = include_bytes!("assets/reference_page_win.png");
+    let reference_bytes = include_bytes!("assets/search_icon.png");
     Ok(io::Reader::new(Cursor::new(reference_bytes))
         .with_guessed_format()?
         .decode()?
@@ -30,12 +31,14 @@ fn get_reference_page() -> Result<Image, ImageError> {
 
 fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
     let reference = get_reference_page()?;
-    let matched = template_matching::match_template(
+    let convolution = convolve2d(
         &imageops::colorops::grayscale(img),
         &imageops::colorops::grayscale(&reference),
-        template_matching::MatchTemplateMethod::SumOfSquaredErrors
-    );
-    let extremes = template_matching::find_extremes(&matched);
+    )
+    .map(|x| SubPixels([x]));
+    //let buffer: ImageBuffer<Luma<f32>, Vec<f32>> = convolution.into();
+    // let gray = GrayImage::from(convolution);
+    let extremes = template_matching::find_extremes(&convolution.into());
     Ok(extremes.min_value_location)
 }
 

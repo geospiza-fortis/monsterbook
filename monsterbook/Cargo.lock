@@ -105,6 +105,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "convolve2d"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "569b220b07b25a124dfc925bb3c7eb03970fa96973cd07314523a771bdeea924"
+dependencies = [
+ "image",
+ "rayon",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -348,6 +358,7 @@ name = "monsterbook"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "convolve2d",
  "image",
  "imageproc",
 ]
