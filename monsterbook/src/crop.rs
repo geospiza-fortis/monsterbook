@@ -1,4 +1,4 @@
-use convolve2d::{convolve2d, SubPixels};
+use convolve2d::{convolve2d, SubPixels, DynamicMatrix};
 use image::{imageops, io, GrayImage, ImageBuffer, ImageError, Rgba};
 use imageproc::template_matching;
 use std::io::Cursor;
@@ -31,14 +31,16 @@ fn get_reference_page() -> Result<Image, ImageError> {
 
 fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
     let reference = get_reference_page()?;
+    let gray_ref: DynamicMatrix<SubPixels<u8, 1>> = imageops::colorops::grayscale(&reference).into();
+    let gray_img: DynamicMatrix<SubPixels<u8, 1>> = imageops::colorops::grayscale(img).into();
+    
     let convolution = convolve2d(
-        &imageops::colorops::grayscale(img),
-        &imageops::colorops::grayscale(&reference),
-    )
-    .map(|x| SubPixels([x]));
+        &gray_img.map(|x| x.0[0] as i32),
+        &gray_ref.map(|x| x.0[0] as i32),
+    );
     //let buffer: ImageBuffer<Luma<f32>, Vec<f32>> = convolution.into();
-    // let gray = GrayImage::from(convolution);
-    let extremes = template_matching::find_extremes(&convolution.into());
+    let gray = GrayImage::from(convolution.map(|x| SubPixels([x.abs() as u8])));
+    let extremes = template_matching::find_extremes(&gray);
     Ok(extremes.min_value_location)
 }
 
