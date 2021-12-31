@@ -1,4 +1,4 @@
 extern crate image;
-extern crate imageproc;
+extern crate nshare;
 
 pub mod crop;
