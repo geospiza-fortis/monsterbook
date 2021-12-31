@@ -1,9 +1,7 @@
 extern crate clap;
-extern crate image;
-extern crate imageproc;
 
 use clap::{AppSettings, Parser, Subcommand};
-use image::{imageops, io};
+use monsterbook::crop;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -34,22 +32,15 @@ enum Commands {
     },
 }
 
-fn path_as_string(path: &PathBuf) -> String {
-    path.clone().into_os_string().into_string().unwrap()
-}
-
-fn main() -> Result<(), Box<std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
     match &args.command {
         Commands::Crop { source, output } => {
-            // it's totally possible that the image is poorly formatted...
-            let mut img = io::Reader::open(&path_as_string(source))?
-                .with_guessed_format()?
-                .decode()?;
-            let (x, y) = (152, 295);
-            let (width, height) = (225, 165);
-            let cropped = imageops::crop(&mut img, x, y, width, height).to_image();
-            cropped.save(&path_as_string(output))?;
+            // it's totally possible that the image is poorly formatted, so we
+            // guess the type
+            let img = crop::imread(source)?;
+            let cropped = crop::crop(img);
+            crop::imsave(output, cropped)?;
         }
         Commands::ReferenceBook {
             source,
