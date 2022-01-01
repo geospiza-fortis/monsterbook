@@ -22,6 +22,14 @@ enum Commands {
         #[clap(required = true, parse(from_os_str))]
         output: PathBuf,
     },
+    /// Crop cards from a single screenshot
+    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    CropCards {
+        #[clap(required = true, parse(from_os_str))]
+        source: PathBuf,
+        #[clap(required = true, parse(from_os_str))]
+        output: PathBuf,
+    },
     /// Generate the reference pages with the appropriate filenames
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     ReferenceBook {
@@ -47,6 +55,8 @@ enum Commands {
         source: PathBuf,
         #[clap(required = true, parse(from_os_str))]
         output: PathBuf,
+        #[clap(long = "generate-stats", parse(from_flag))]
+        generate_stats: bool,
     },
 }
 
@@ -92,7 +102,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut img = crop::imread(source)?;
             let (x, y) = crop::match_reference_page(&img)?;
             let cropped = crop::crop(&mut img, x, y)?;
-            crop::imsave(output, cropped)?;
+            crop::imsave(output, &cropped)?;
+        }
+        Commands::CropCards { source, output } => {
+            // it's totally possible that the image is poorly formatted, so we
+            // guess the type
+            let mut img = crop::imread(source)?;
+            let (x, y) = crop::match_reference_page(&img)?;
+            let mut cropped = crop::crop(&mut img, x, y)?;
+            // now lets crop, remove all the empty entries
+            fs::create_dir_all(output)?;
+            let cards = crop::crop_cards(&mut cropped)?;
+            for (i, card) in cards.iter().enumerate() {
+                let mut card_file = output.clone();
+                card_file.push(format!("{:02}.png", i));
+                crop::imsave(&card_file, card)?;
+            }
         }
         Commands::ReferenceBook {
             source,
@@ -125,7 +150,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
                 let mut output = output.clone();
                 output.push(name);
-                crop::imsave(&output, cropped)?;
+                crop::imsave(&output, &cropped)?;
             }
         }
         Commands::StitchPages { source, output } => {
@@ -143,9 +168,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 images.push(cropped);
             }
             let stitched = stitch::stitch_images(images, 6);
-            crop::imsave(&output, stitched)?;
+            crop::imsave(&output, &stitched)?;
         }
-        Commands::StitchCards { source, output } => {
+        Commands::StitchCards {
+            source,
+            output,
+            generate_stats,
+        } => {
             let mut images = Vec::new();
             // output is a file
             let (mut x, mut y) = (0, 0);
@@ -160,12 +189,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 images.push(cropped);
             }
             // now lets crop, remove all the empty entries
-            let cards = images
+            let cards_iter = images
                 .iter_mut()
-                .flat_map(|img| crop::crop_cards(img).unwrap())
-                .collect();
+                .flat_map(|img| crop::crop_cards(img).unwrap());
+
+            // instead of filtering cards, we'll print statistics out to stdout,
+            // which can be used to determine what the threshold should be
+            if *generate_stats {
+                let mse: Vec<u32> = cards_iter.map(|img| crop::card_mse(&img)).collect();
+                println!("{:?}", mse);
+                // exit early...
+                return Ok(());
+            }
+            // to determine the threshold, generate stats and look for an obvious cutoff
+            let cards = cards_iter.filter(|img| crop::card_mse(img) > 500).collect();
             let stitched = stitch::stitch_images(cards, 6 * 5);
-            crop::imsave(&output, stitched)?;
+            crop::imsave(&output, &stitched)?;
         }
     }
     Ok(())

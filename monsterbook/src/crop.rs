@@ -18,8 +18,16 @@ pub fn imread(source: &Path) -> Result<Image, ImageError> {
         .into_rgba8())
 }
 
-pub fn imsave(output: &Path, img: Image) -> Result<(), ImageError> {
+pub fn imsave(output: &Path, img: &Image) -> Result<(), ImageError> {
     img.save(&path_as_string(output))
+}
+
+fn get_empty_card() -> Result<Image, ImageError> {
+    let reference_bytes = include_bytes!("assets/empty_card.png");
+    Ok(io::Reader::new(Cursor::new(reference_bytes))
+        .with_guessed_format()?
+        .decode()?
+        .into_rgba8())
 }
 
 fn get_reference_page() -> Result<Image, ImageError> {
@@ -135,4 +143,24 @@ pub fn crop_cards(img: &mut Image) -> Result<Vec<Image>, ImageError> {
         }
     }
     Ok(cards)
+}
+
+pub fn mse(img: &Image, reference: &Image) -> u32 {
+    let gray_img = into_grayscale_array(img);
+    let gray_ref = into_grayscale_array(reference);
+
+    // calculatinng mse
+    let acc: i32 = gray_img
+        .iter()
+        .zip(gray_ref.iter())
+        .map(|(x, y)| (*x as i32 - *y as i32).pow(2))
+        .sum();
+    let denom = img.width() * img.height();
+    return (acc / denom as i32) as u32;
+}
+
+// good default threshold is 100
+pub fn card_mse(img: &Image) -> u32 {
+    let empty_card = get_empty_card().unwrap();
+    mse(img, &empty_card)
 }
