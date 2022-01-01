@@ -97,7 +97,7 @@ pub fn pad_image(img: &Image, reference: &Image) -> Image {
     background
 }
 
-fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
+pub fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
     // pad the reference with the original image
     let reference = pad_image(&get_reference_page()?, img);
     let mut gray_ref = into_grayscale_array(&reference).mapv(|x| Complex::new(x as f32, 0.0));
@@ -114,11 +114,10 @@ fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
             maxpos = pos;
         }
     }
-    Ok((maxpos.0 as u32, maxpos.1 as u32))
+    Ok((maxpos.1 as u32, maxpos.0 as u32))
 }
 
-pub fn crop(mut img: Image) -> Result<Image, ImageError> {
-    let (y, x) = match_reference_page(&img)?;
+pub fn crop(mut img: Image, x: u32, y: u32) -> Result<Image, ImageError> {
     let (height, width) = (225, 165);
     Ok(imageops::crop(&mut img, x, y, width, height).to_image())
 }

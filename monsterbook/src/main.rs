@@ -73,7 +73,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // it's totally possible that the image is poorly formatted, so we
             // guess the type
             let img = crop::imread(source)?;
-            let cropped = crop::crop(img)?;
+            let (x, y) = crop::match_reference_page(&img)?;
+            let cropped = crop::crop(img, x, y)?;
             crop::imsave(output, cropped)?;
         }
         Commands::ReferenceBook {
@@ -87,10 +88,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             fs::create_dir_all(output)?;
             // implicitly reads this in the correct order
+            let (mut x, mut y) = (0, 0);
             for (entry, metadata) in fs::read_dir(source)?.zip(page_metadata().iter()) {
                 let entry = entry?;
                 let img = crop::imread(&entry.path())?;
-                let cropped = crop::crop(img)?;
+                // we only run match reference on the first iteration, we also
+                // assume that it's impossible to have an image where the offset
+                // is at 0, 0
+                if x == 0 && y == 0 {
+                    let (a, b) = crop::match_reference_page(&img)?;
+                    x = a;
+                    y = b;
+                }
+                let cropped = crop::crop(img, x, y)?;
 
                 let name = format!(
                     "{:02}_{}_{}.png",
