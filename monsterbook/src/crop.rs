@@ -1,5 +1,5 @@
 use image::{imageops, io, ImageBuffer, ImageError, Rgba, RgbaImage};
-use ndarray::{s, Array2};
+use ndarray::{stack, Array2, ArrayBase, Axis, ViewRepr};
 use nshare::ToNdarray2;
 use rustfft::{num_complex::Complex, FftPlanner};
 use std::io::Cursor;
@@ -23,7 +23,7 @@ pub fn imsave(output: &PathBuf, img: Image) -> Result<(), ImageError> {
 }
 
 fn get_reference_page() -> Result<Image, ImageError> {
-    let reference_bytes = include_bytes!("assets/search_icon.png");
+    let reference_bytes = include_bytes!("assets/reference_page_win.png");
     Ok(io::Reader::new(Cursor::new(reference_bytes))
         .with_guessed_format()?
         .decode()?
@@ -42,41 +42,53 @@ fn fft2d(array: &mut Array2<Complex<f32>>) {
     for mut row in array.rows_mut() {
         fft_row.process(row.as_slice_mut().unwrap());
     }
+    // gross, since we end up creating a new array that's transposed...
+    let mut cols = Vec::new();
     let fft_col = planner.plan_fft_forward(array.dim().0);
-    for mut col in array.columns_mut() {
-        fft_col.process(col.slice_mut().unwrap());
+    for j in 0..array.dim().1 {
+        let mut selected = array.t().select(Axis(0), &[j]);
+        fft_col.process(selected.row_mut(0).as_slice_mut().unwrap());
+        cols.push(selected);
     }
+    let stacked: Vec<ArrayBase<ViewRepr<&_>, _>> = cols.iter().map(|r| r.row(0)).collect();
+    *array = stack(Axis(0), stacked.as_slice()).unwrap();
 }
 
 /// Reverse of fft, by inverting columns then rows
 fn ifft2d(array: &mut Array2<Complex<f32>>) {
+    // we make an assumption that the data is already in column-major form due
+    // to the use of fft2d.
     let mut planner = FftPlanner::<f32>::new();
-    // row x col, we want to run the fft with column size
-    let fft_col = planner.plan_fft_inverse(array.dim().0);
-    for mut col in array.columns_mut() {
-        fft_col.process(col.as_slice_memory_order_mut().unwrap());
-    }
     let fft_row = planner.plan_fft_inverse(array.dim().1);
     for mut row in array.rows_mut() {
         fft_row.process(row.as_slice_mut().unwrap());
     }
+    let mut cols = Vec::new();
+    let fft_col = planner.plan_fft_inverse(array.dim().0);
+    for j in 0..array.dim().1 {
+        let mut selected = array.t().select(Axis(0), &[j]);
+        fft_col.process(selected.row_mut(0).as_slice_mut().unwrap());
+        cols.push(selected);
+    }
+    let stacked: Vec<ArrayBase<ViewRepr<&_>, _>> = cols.iter().map(|r| r.row(0)).collect();
+    *array = stack(Axis(0), stacked.as_slice()).unwrap();
 }
 
 /// Run the phase correlation algorithm, and return the value into the original
-/// image
+/// image: https://stackoverflow.com/a/32664730
 fn phase_correlate(img: &mut Array2<Complex<f32>>, reference: &mut Array2<Complex<f32>>) {
     fft2d(img);
     fft2d(reference);
     // https://stackoverflow.com/a/41207820
     for (lhs, rhs) in img.iter_mut().zip(reference.iter_mut()) {
         let x = *lhs * rhs.conj();
-        *lhs = x / x.norm()
+        *lhs = x / x.norm();
     }
     ifft2d(img);
 }
 
 // pad the first image with zeros until it matches the size of the reference
-fn pad_image(img: &Image, reference: &Image) -> Image {
+pub fn pad_image(img: &Image, reference: &Image) -> Image {
     let mut background = RgbaImage::new(reference.width(), reference.height());
     imageops::overlay(&mut background, img, 0, 0);
     background
@@ -103,7 +115,7 @@ fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
 }
 
 pub fn crop(mut img: Image) -> Result<Image, ImageError> {
-    let (x, y) = match_reference_page(&img)?;
-    let (width, height) = (225, 165);
+    let (y, x) = match_reference_page(&img)?;
+    let (height, width) = (225, 165);
     Ok(imageops::crop(&mut img, x, y, width, height).to_image())
 }
