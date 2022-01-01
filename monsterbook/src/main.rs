@@ -2,6 +2,7 @@ extern crate clap;
 
 use clap::{AppSettings, Parser, Subcommand};
 use monsterbook::crop;
+use std::fs;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -32,6 +33,39 @@ enum Commands {
     },
 }
 
+struct PageMetadata {
+    page_id: u8,
+    tab_color: String,
+    tab_index: u8,
+}
+
+fn page_metadata() -> Vec<PageMetadata> {
+    const TAB_COUNTS: [(&str, u8); 9] = [
+        ("red", 1),
+        ("orange", 3),
+        ("lightgreen", 4),
+        ("green", 3),
+        ("lightblue", 3),
+        ("blue", 2),
+        ("purple", 2),
+        ("black", 2),
+        ("gold", 3),
+    ];
+    let mut meta = Vec::new();
+    let mut page_id = 0;
+    for (color, count) in TAB_COUNTS {
+        for i in 0..count {
+            meta.push(PageMetadata {
+                page_id: page_id,
+                tab_color: color.into(),
+                tab_index: i,
+            });
+            page_id += 1;
+        }
+    }
+    return meta;
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
     match &args.command {
@@ -47,10 +81,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             output,
             overwrite,
         } => {
-            println!(
-                "source {:?}, output {:?}, overwrite {:?}",
-                source, output, overwrite
-            )
+            if output.exists() && !overwrite {
+                // TODO: better error handling...
+                panic!("path already exists");
+            }
+            fs::create_dir_all(output)?;
+            // implicitly reads this in the correct order
+            for (entry, metadata) in fs::read_dir(source)?.zip(page_metadata().iter()) {
+                let entry = entry?;
+                let img = crop::imread(&entry.path())?;
+                let cropped = crop::crop(img)?;
+
+                let name = format!(
+                    "{:02}_{}_{}.png",
+                    metadata.page_id, metadata.tab_color, metadata.tab_index
+                );
+                let mut output = output.clone();
+                output.push(name);
+                crop::imsave(&output, cropped)?;
+            }
         }
     }
     Ok(())
