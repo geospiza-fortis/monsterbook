@@ -1,24 +1,24 @@
 use image::{imageops, io, ImageBuffer, ImageError, Rgba, RgbaImage};
 use ndarray::{stack, Array2, ArrayBase, Axis, ViewRepr};
 use nshare::ToNdarray2;
-use rustfft::{num_complex::Complex, FftPlanner};
+use rustfft::{num_complex::Complex, FftDirection, FftPlanner};
 use std::io::Cursor;
-use std::path::PathBuf;
+use std::path::Path;
 
 type Image = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
-fn path_as_string(path: &PathBuf) -> String {
-    path.clone().into_os_string().into_string().unwrap()
+fn path_as_string(path: &Path) -> String {
+    path.to_path_buf().into_os_string().into_string().unwrap()
 }
 
-pub fn imread(source: &PathBuf) -> Result<Image, ImageError> {
+pub fn imread(source: &Path) -> Result<Image, ImageError> {
     Ok(io::Reader::open(&path_as_string(source))?
         .with_guessed_format()?
         .decode()?
         .into_rgba8())
 }
 
-pub fn imsave(output: &PathBuf, img: Image) -> Result<(), ImageError> {
+pub fn imsave(output: &Path, img: Image) -> Result<(), ImageError> {
     img.save(&path_as_string(output))
 }
 
@@ -34,6 +34,26 @@ fn into_grayscale_array(img: &Image) -> Array2<u8> {
     imageops::colorops::grayscale(img).into_ndarray2()
 }
 
+fn column_fft(
+    array: &mut Array2<Complex<f32>>,
+    planner: &mut FftPlanner<f32>,
+    direction: FftDirection,
+) {
+    // gross, since we end up creating a new array that's transposed...
+    let plan = match direction {
+        FftDirection::Forward => planner.plan_fft_forward(array.dim().0),
+        FftDirection::Inverse => planner.plan_fft_inverse(array.dim().0),
+    };
+    let mut cols = Vec::new();
+    for j in 0..array.dim().1 {
+        let mut selected = array.t().select(Axis(0), &[j]);
+        plan.process(selected.row_mut(0).as_slice_mut().unwrap());
+        cols.push(selected);
+    }
+    let stacked: Vec<ArrayBase<ViewRepr<&_>, _>> = cols.iter().map(|r| r.row(0)).collect();
+    *array = stack(Axis(0), stacked.as_slice()).unwrap();
+}
+
 /// Take the 1d fft of each row, and then the 1d fft of each column
 fn fft2d(array: &mut Array2<Complex<f32>>) {
     let mut planner = FftPlanner::<f32>::new();
@@ -42,16 +62,7 @@ fn fft2d(array: &mut Array2<Complex<f32>>) {
     for mut row in array.rows_mut() {
         fft_row.process(row.as_slice_mut().unwrap());
     }
-    // gross, since we end up creating a new array that's transposed...
-    let mut cols = Vec::new();
-    let fft_col = planner.plan_fft_forward(array.dim().0);
-    for j in 0..array.dim().1 {
-        let mut selected = array.t().select(Axis(0), &[j]);
-        fft_col.process(selected.row_mut(0).as_slice_mut().unwrap());
-        cols.push(selected);
-    }
-    let stacked: Vec<ArrayBase<ViewRepr<&_>, _>> = cols.iter().map(|r| r.row(0)).collect();
-    *array = stack(Axis(0), stacked.as_slice()).unwrap();
+    column_fft(array, &mut planner, FftDirection::Forward);
 }
 
 /// Reverse of fft, by inverting columns then rows
@@ -63,15 +74,7 @@ fn ifft2d(array: &mut Array2<Complex<f32>>) {
     for mut row in array.rows_mut() {
         fft_row.process(row.as_slice_mut().unwrap());
     }
-    let mut cols = Vec::new();
-    let fft_col = planner.plan_fft_inverse(array.dim().0);
-    for j in 0..array.dim().1 {
-        let mut selected = array.t().select(Axis(0), &[j]);
-        fft_col.process(selected.row_mut(0).as_slice_mut().unwrap());
-        cols.push(selected);
-    }
-    let stacked: Vec<ArrayBase<ViewRepr<&_>, _>> = cols.iter().map(|r| r.row(0)).collect();
-    *array = stack(Axis(0), stacked.as_slice()).unwrap();
+    column_fft(array, &mut planner, FftDirection::Inverse);
 }
 
 /// Run the phase correlation algorithm, and return the value into the original
