@@ -117,7 +117,22 @@ pub fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
     Ok((maxpos.1 as u32, maxpos.0 as u32))
 }
 
-pub fn crop(mut img: Image, x: u32, y: u32) -> Result<Image, ImageError> {
+pub fn crop(img: &mut Image, x: u32, y: u32) -> Result<Image, ImageError> {
     let (height, width) = (225, 165);
-    Ok(imageops::crop(&mut img, x, y, width, height).to_image())
+    Ok(imageops::crop(img, x, y, width, height).to_image())
+}
+
+pub fn crop_cards(img: &mut Image) -> Result<Vec<Image>, ImageError> {
+    let num_rows: u32 = 5;
+    let num_cols: u32 = 5;
+    let h = img.height() / num_rows;
+    let w = img.width() / num_cols;
+    let mut cards = Vec::new();
+    for i in 0..num_rows {
+        for j in 0..num_cols {
+            let card = imageops::crop(img, j * w, i * h, w, h).to_image();
+            cards.push(card);
+        }
+    }
+    Ok(cards)
 }

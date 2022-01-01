@@ -14,6 +14,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Crop a single screenshot
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     Crop {
         #[clap(required = true, parse(from_os_str))]
@@ -21,7 +22,7 @@ enum Commands {
         #[clap(required = true, parse(from_os_str))]
         output: PathBuf,
     },
-    /// Generate the reference
+    /// Generate the reference pages with the appropriate filenames
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     ReferenceBook {
         #[clap(required = true, parse(from_os_str))]
@@ -31,8 +32,17 @@ enum Commands {
         #[clap(long="no-overwrite", parse(from_flag = std::ops::Not::not))]
         overwrite: bool,
     },
+    /// Create a stitched image of full pages
     #[clap(setting(AppSettings::ArgRequiredElseHelp))]
-    Stitch {
+    StitchPages {
+        #[clap(required = true, parse(from_os_str))]
+        source: PathBuf,
+        #[clap(required = true, parse(from_os_str))]
+        output: PathBuf,
+    },
+    /// Create a stitched image of cards
+    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    StitchCards {
         #[clap(required = true, parse(from_os_str))]
         source: PathBuf,
         #[clap(required = true, parse(from_os_str))]
@@ -79,9 +89,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Crop { source, output } => {
             // it's totally possible that the image is poorly formatted, so we
             // guess the type
-            let img = crop::imread(source)?;
+            let mut img = crop::imread(source)?;
             let (x, y) = crop::match_reference_page(&img)?;
-            let cropped = crop::crop(img, x, y)?;
+            let cropped = crop::crop(&mut img, x, y)?;
             crop::imsave(output, cropped)?;
         }
         Commands::ReferenceBook {
@@ -98,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (mut x, mut y) = (0, 0);
             for (entry, metadata) in fs::read_dir(source)?.zip(page_metadata().iter()) {
                 let entry = entry?;
-                let img = crop::imread(&entry.path())?;
+                let mut img = crop::imread(&entry.path())?;
                 // we only run match reference on the first iteration, we also
                 // assume that it's impossible to have an image where the offset
                 // is at 0, 0
@@ -107,7 +117,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     x = a;
                     y = b;
                 }
-                let cropped = crop::crop(img, x, y)?;
+                let cropped = crop::crop(&mut img, x, y)?;
 
                 let name = format!(
                     "{:02}_{}_{}.png",
@@ -118,21 +128,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 crop::imsave(&output, cropped)?;
             }
         }
-        Commands::Stitch { source, output } => {
+        Commands::StitchPages { source, output } => {
             let mut images = Vec::new();
             // output is a file
             let (mut x, mut y) = (0, 0);
             for entry in fs::read_dir(source)? {
-                let img = crop::imread(&entry?.path())?;
+                let mut img = crop::imread(&entry?.path())?;
                 if x == 0 && y == 0 {
                     let (a, b) = crop::match_reference_page(&img)?;
                     x = a;
                     y = b;
                 }
-                let cropped = crop::crop(img, x, y)?;
+                let cropped = crop::crop(&mut img, x, y)?;
                 images.push(cropped);
             }
-            let stitched = stitch::stitch_images(images, 6, 4);
+            let stitched = stitch::stitch_images(images, 6);
+            crop::imsave(&output, stitched)?;
+        }
+        Commands::StitchCards { source, output } => {
+            let mut images = Vec::new();
+            // output is a file
+            let (mut x, mut y) = (0, 0);
+            for entry in fs::read_dir(source)? {
+                let mut img = crop::imread(&entry?.path())?;
+                if x == 0 && y == 0 {
+                    let (a, b) = crop::match_reference_page(&img)?;
+                    x = a;
+                    y = b;
+                }
+                let cropped = crop::crop(&mut img, x, y)?;
+                images.push(cropped);
+            }
+            // now lets crop, remove all the empty entries
+            let cards = images
+                .iter_mut()
+                .flat_map(|img| crop::crop_cards(img).unwrap())
+                .collect();
+            let stitched = stitch::stitch_images(cards, 6 * 5);
             crop::imsave(&output, stitched)?;
         }
     }
