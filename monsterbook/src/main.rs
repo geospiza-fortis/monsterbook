@@ -121,9 +121,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Stitch { source, output } => {
             let mut images = Vec::new();
             // output is a file
+            let (mut x, mut y) = (0, 0);
             for entry in fs::read_dir(source)? {
                 let img = crop::imread(&entry?.path())?;
-                images.push(img);
+                if x == 0 && y == 0 {
+                    let (a, b) = crop::match_reference_page(&img)?;
+                    x = a;
+                    y = b;
+                }
+                let cropped = crop::crop(img, x, y)?;
+                images.push(cropped);
             }
             let stitched = stitch::stitch_images(images, 6, 4);
             crop::imsave(&output, stitched)?;
