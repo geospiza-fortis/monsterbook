@@ -1,7 +1,7 @@
 extern crate clap;
 
 use clap::{AppSettings, Parser, Subcommand};
-use monsterbook::crop;
+use monsterbook::{crop, stitch};
 use std::fs;
 use std::path::PathBuf;
 
@@ -30,6 +30,13 @@ enum Commands {
         output: PathBuf,
         #[clap(long="no-overwrite", parse(from_flag = std::ops::Not::not))]
         overwrite: bool,
+    },
+    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    Stitch {
+        #[clap(required = true, parse(from_os_str))]
+        source: PathBuf,
+        #[clap(required = true, parse(from_os_str))]
+        output: PathBuf,
     },
 }
 
@@ -110,6 +117,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 output.push(name);
                 crop::imsave(&output, cropped)?;
             }
+        }
+        Commands::Stitch { source, output } => {
+            let mut images = Vec::new();
+            // output is a file
+            for entry in fs::read_dir(source)? {
+                let img = crop::imread(&entry?.path())?;
+                images.push(img);
+            }
+            let stitched = stitch::stitch_images(images, 6, 4);
+            crop::imsave(&output, stitched)?;
         }
     }
     Ok(())
