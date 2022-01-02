@@ -78,7 +78,7 @@ pub fn get_empty_card_mse(images: &mut Vec<Image>) -> Vec<u32> {
         .collect()
 }
 
-pub fn stitch_cards(images: &mut Vec<Image>, ) -> Image {
+pub fn stitch_cards(images: &mut Vec<Image>) -> Image {
     // now lets crop, remove all the empty entries
     let cards = images
         .iter_mut()
