@@ -165,21 +165,6 @@ pub fn card_mse(img: &Image) -> u32 {
     mse(img, &empty_card)
 }
 
-pub fn get_color(color: &str) -> Rgba<u8> {
-    match color {
-        "red" => Rgba([255, 102, 102, 255]),
-        "orange" => Rgba([255, 187, 68, 255]),
-        "lightgreen" => Rgba([221, 255, 102, 255]),
-        "green" => Rgba([102, 255, 136, 255]),
-        "lightblue" => Rgba([136, 255, 238, 255]),
-        "blue" => Rgba([119, 187, 255, 255]),
-        "purple" => Rgba([187, 119, 255, 255]),
-        "black" => Rgba([85, 85, 85, 255]),
-        "gold" => Rgba([255, 187, 34, 255]),
-        _ => Rgba([0, 0, 0, 0]),
-    }
-}
-
 // remove the background from a card
 pub fn replace_background(img: &mut Image, color: Rgba<u8>) {
     // replace the background with our own custom color

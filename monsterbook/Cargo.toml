@@ -2,8 +2,18 @@
 name = "monsterbook"
 version = "0.1.0"
 edition = "2021"
+default-run = "monsterbook-cli"
+
+[[bin]]
+name = "monsterbook-cli"
+path = "src/cli.rs"
+
+[[bin]]
+name = "monsterbook-gui"
+path = "src/gui.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# https://stackoverflow.com/questions/35711044/how-can-i-specify-binary-only-dependencies
 
 [dependencies]
 image = "0.23.14"
@@ -11,3 +21,6 @@ rustfft = "6.0.1"
 nshare = "0.8.0"
 ndarray = "0.15.4"
 clap = { git = "https://github.com/clap-rs/clap/", features = ["derive"] }
+
+eframe = "0.16.0"
+rfd = "0.6.3"
