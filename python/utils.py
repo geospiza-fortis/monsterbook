@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from scipy.signal import convolve2d
 
+CROP_SHAPE = (225, 165)
+
 
 def imread(path):
-    return mpimg.imread(path)
+    return mpimg.imread(path, format="jpeg")
 
 
 def imshow(img):
@@ -22,13 +24,24 @@ def rgb2gray(rgb):
     return (np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140]) * 255).astype(int)
 
 
+def crop_win(img):
+    x, y = 152, 295
+    shape = CROP_SHAPE
+    return img[x : x + shape[0], y : y + shape[1]]
+
+
+def crop_mac(img):
+    x, y = 412, 569
+    # twice the resolution of normal
+    shape = CROP_SHAPE[0] * 2, CROP_SHAPE[1] * 2
+    return img[x : x + shape[0], y : y + shape[1]]
+
+
 def crop(img):
-    # TODO: this is all mac logic, needs to be redone for windows
-    # but this is also going to be reimplemented in javascript
-    # for visualization sake
-    cropped = img[412:862, 569:899]
-    assert cropped.shape[:2] == (450, 330), cropped.shape
-    return cropped
+    if img.shape[:2] not in ((600, 800), (768, 1024), (768, 1366)):
+        return crop_mac(img)
+    else:
+        return crop_win(img)
 
 
 def crop_card(img, i, j):
@@ -50,10 +63,23 @@ def crop_cards(img):
     return cards
 
 
-def crop_tag(card):
-    cropped = card[62:80, 11:23]
-    assert cropped.shape[:2] == (18, 12), cropped.shape
-    return cropped
+def crop_tag_mac(card):
+    x, y = 62, 11
+    shape = 18, 12
+    return card[x : x + shape[0], y : y + shape[1]]
+
+
+def crop_tag_win(card):
+    x, y = 31, 5
+    shape = 9, 6
+    return card[x : x + shape[0], y : y + shape[1]]
+
+
+def crop_tag(img):
+    if img.shape[:2] != (45, 33):
+        return crop_tag_mac(img)
+    else:
+        return crop_tag_win(img)
 
 
 def sobel_filter(img):

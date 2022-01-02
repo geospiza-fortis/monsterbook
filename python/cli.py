@@ -41,7 +41,7 @@ def page_metadata():
         ("blue", 2),
         ("purple", 2),
         ("black", 2),
-        ("gold", 2),
+        ("gold", 3),
     ]
     # fmt:off
     page_counts = [
@@ -53,7 +53,7 @@ def page_metadata():
         25, 6,
         25, 8,
         25, 5,
-        25, 25,
+        25, 25, 4
     ]
     # fmt:on
     meta = []
@@ -69,6 +69,21 @@ def mkdir(path, overwrite):
     if path.is_dir() and overwrite:
         shutil.rmtree(path)
     path.mkdir(parents=True)
+
+
+@monsterbook.command()
+@click.option(
+    "--source", default=str(ROOT / "data" / "raw" / "resolutions" / "hdclient_0.png")
+)
+@click.option(
+    "--output", default=str(ROOT / "data" / "processed" / "reference_hdclient_0.png")
+)
+def crop_image(source, output):
+    """Crop a single image"""
+    source = Path(source).resolve()
+    output = Path(output).resolve()
+    img = crop(imread(source))
+    imsave(output, img)
 
 
 @monsterbook.command()

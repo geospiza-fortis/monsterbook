@@ -9,3 +9,5 @@ data/
 /public/build/
 
 .DS_Store
+target/
+test.png
