@@ -189,23 +189,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 images.push(cropped);
             }
             // now lets crop, remove all the empty entries
-            let cards_iter = images
-                .iter_mut()
-                .flat_map(|img| crop::crop_cards(img).unwrap());
+            let cards_vec =
+                images
+                    .iter_mut()
+                    .zip(page_metadata().into_iter())
+                    .flat_map(|(img, meta)| {
+                        crop::crop_cards(img)
+                            .unwrap()
+                            .into_iter()
+                            .map(|card| (card, meta.tab_color.clone()))
+                            .collect::<Vec<(crop::Image, String)>>()
+                    });
 
             // instead of filtering cards, we'll print statistics out to stdout,
             // which can be used to determine what the threshold should be
             if *generate_stats {
-                let mse: Vec<u32> = cards_iter.map(|img| crop::card_mse(&img)).collect();
+                let mse: Vec<u32> = cards_vec.map(|(img, _)| crop::card_mse(&img)).collect();
                 println!("{:?}", mse);
                 // exit early...
                 return Ok(());
             }
             // to determine the threshold, generate stats and look for an obvious cutoff
-            let cards = cards_iter
-                .filter(|img| crop::card_mse(img) > 500)
-                .map(|mut img| {
-                    crop::replace_background(&mut img);
+            let cards = cards_vec
+                .filter(|(img, _)| crop::card_mse(img) > 500)
+                .map(|(mut img, color)| {
+                    crop::replace_background(&mut img, crop::get_color(&color));
                     img
                 })
                 .collect();

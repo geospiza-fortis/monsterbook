@@ -5,7 +5,7 @@ use rustfft::{num_complex::Complex, FftDirection, FftPlanner};
 use std::io::Cursor;
 use std::path::Path;
 
-type Image = ImageBuffer<Rgba<u8>, Vec<u8>>;
+pub type Image = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
 fn path_as_string(path: &Path) -> String {
     path.to_path_buf().into_os_string().into_string().unwrap()
@@ -165,10 +165,25 @@ pub fn card_mse(img: &Image) -> u32 {
     mse(img, &empty_card)
 }
 
+pub fn get_color(color: &str) -> Rgba<u8> {
+    match color {
+        "red" => Rgba([255, 102, 102, 255]),
+        "orange" => Rgba([255, 187, 68, 255]),
+        "lightgreen" => Rgba([221, 255, 102, 255]),
+        "green" => Rgba([102, 255, 136, 255]),
+        "lightblue" => Rgba([136, 255, 238, 255]),
+        "blue" => Rgba([119, 187, 255, 255]),
+        "purple" => Rgba([187, 119, 255, 255]),
+        "black" => Rgba([85, 85, 85, 255]),
+        "gold" => Rgba([255, 187, 34, 255]),
+        _ => Rgba([0, 0, 0, 0]),
+    }
+}
+
 // remove the background from a card
-pub fn replace_background(img: &mut Image) {
+pub fn replace_background(img: &mut Image, color: Rgba<u8>) {
     // replace the background with our own custom color
-    let mut background = RgbaImage::new(img.width(), img.height());
+    let mut background = RgbaImage::from_fn(img.width(), img.height(), |_, _| color);
     // see notebook, but we go from [4:-3, 3:-3] in numpy
     let cropped = imageops::crop(img, 3, 4, 27, 38);
     imageops::overlay(&mut background, &cropped, 3, 4);
