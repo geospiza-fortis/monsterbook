@@ -164,3 +164,13 @@ pub fn card_mse(img: &Image) -> u32 {
     let empty_card = get_empty_card().unwrap();
     mse(img, &empty_card)
 }
+
+// remove the background from a card
+pub fn replace_background(img: &mut Image) {
+    // replace the background with our own custom color
+    let mut background = RgbaImage::new(img.width(), img.height());
+    // see notebook, but we go from [4:-3, 3:-3] in numpy
+    let cropped = imageops::crop(img, 3, 4, 27, 38);
+    imageops::overlay(&mut background, &cropped, 3, 4);
+    *img = background;
+}

@@ -202,8 +202,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Ok(());
             }
             // to determine the threshold, generate stats and look for an obvious cutoff
-            let cards = cards_iter.filter(|img| crop::card_mse(img) > 500).collect();
-            let stitched = stitch::stitch_images(cards, 6 * 5);
+            let cards = cards_iter
+                .filter(|img| crop::card_mse(img) > 500)
+                .map(|mut img| {
+                    crop::replace_background(&mut img);
+                    img
+                })
+                .collect();
+            let stitched = stitch::stitch_images(cards, 4 * 5);
             crop::imsave(&output, &stitched)?;
         }
     }
