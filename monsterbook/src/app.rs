@@ -10,9 +10,10 @@ pub struct App {
     picked_path: Option<String>,
     cropped: Option<Vec<Image>>,
     crop_in_progress: Option<Receiver<Vec<Image>>>,
+    stitched: Option<(Image, String)>,
+    stitch_in_progress: Option<Receiver<(Image, String)>>,
     cards_per_row: u32,
     tex_mngr: TexMngr,
-    stitched: Option<Image>,
 }
 
 impl<'a> epi::App for App {
@@ -31,6 +32,14 @@ impl<'a> epi::App for App {
                 self.cropped = Some(data);
             }
         }
+
+        if let Some(receiver) = &self.stitch_in_progress {
+            if let Ok(data) = receiver.try_recv() {
+                self.stitch_in_progress = None;
+                self.stitched = Some(data);
+            }
+        }
+
         egui::TopBottomPanel::bottom("info").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.hyperlink_to("made by geospiza", "https://geospiza.me");
@@ -48,10 +57,8 @@ impl<'a> epi::App for App {
                 if ui.button("Open directory...").clicked() {
                     if let Some(path) = FileDialog::new().pick_folder() {
                         self.picked_path = Some(path.display().to_string());
-                        // can I run something like this in a thread?
                         let (sender, receiver) = std::sync::mpsc::channel();
                         self.crop_in_progress = Some(receiver);
-                        // will this thread die by itself?
                         thread::spawn(move || {
                             let images = utils::get_cropped_images(&path).unwrap();
                             sender.send(images).unwrap();
@@ -82,10 +89,22 @@ impl<'a> epi::App for App {
                     .clicked()
                 {
                     if let Some(cropped) = &self.cropped {
-                        self.stitched = Some(utils::stitch_cards(&cropped, self.cards_per_row));
+                        let (sender, receiver) = std::sync::mpsc::channel();
+                        self.stitch_in_progress = Some(receiver);
+                        // we have to make clones in order to move the values
+                        // into a thread
+                        let cards_per_row = self.cards_per_row;
+                        let path =
+                            format!("{}/{}", self.picked_path.as_ref().unwrap(), cards_per_row);
+                        let cloned = cropped.clone();
+                        thread::spawn(move || {
+                            // this path should be unique enough to update the current texture
+                            let image = utils::stitch_cards(&cloned, cards_per_row);
+                            sender.send((image, String::from(path))).unwrap();
+                        });
                     }
                 }
-                if let Some(stitched) = &self.stitched {
+                if let Some((stitched, _)) = &self.stitched {
                     if ui.button("Save image").clicked() {
                         if let Some(path) =
                             FileDialog::new().add_filter("png", &["png"]).save_file()
@@ -96,13 +115,7 @@ impl<'a> epi::App for App {
                 }
             });
 
-            if let Some(stitched) = &self.stitched {
-                // this path should be unique enough to update the current texture
-                let path = format!(
-                    "{}/{}",
-                    self.picked_path.as_ref().unwrap(),
-                    self.cards_per_row
-                );
+            if let Some((stitched, path)) = &self.stitched {
                 let image = decode_image(stitched.clone()).unwrap();
                 //let image = decode_image(self.cropped.as_ref().unwrap()[0].as_raw()).unwrap();
                 if let Some(texture_id) = self.tex_mngr.texture(frame, &path, &image) {
