@@ -130,15 +130,16 @@ pub fn crop(img: &mut Image, x: u32, y: u32) -> Result<Image, ImageError> {
     Ok(imageops::crop(img, x, y, width, height).to_image())
 }
 
-pub fn crop_cards(img: &mut Image) -> Result<Vec<Image>, ImageError> {
+pub fn crop_cards(img: &Image) -> Result<Vec<Image>, ImageError> {
     let num_rows: u32 = 5;
     let num_cols: u32 = 5;
     let h = img.height() / num_rows;
     let w = img.width() / num_cols;
+    let mut page = img.clone();
     let mut cards = Vec::new();
     for i in 0..num_rows {
         for j in 0..num_cols {
-            let card = imageops::crop(img, j * w, i * h, w, h).to_image();
+            let card = imageops::crop(&mut page, j * w, i * h, w, h).to_image();
             cards.push(card);
         }
     }
@@ -170,7 +171,8 @@ pub fn replace_background(img: &mut Image, color: Rgba<u8>) {
     // replace the background with our own custom color
     let mut background = RgbaImage::from_fn(img.width(), img.height(), |_, _| color);
     // see notebook, but we go from [4:-3, 3:-3] in numpy
-    let cropped = imageops::crop(img, 3, 4, 27, 38);
+    let mut cloned = img.clone();
+    let cropped = imageops::crop(&mut cloned, 3, 4, 27, 38);
     imageops::overlay(&mut background, &cropped, 3, 4);
     *img = background;
 }

@@ -78,10 +78,10 @@ pub fn get_empty_card_mse(images: &mut Vec<Image>) -> Vec<u32> {
         .collect()
 }
 
-pub fn stitch_cards(images: &mut Vec<Image>) -> Image {
+pub fn stitch_cards(images: &Vec<Image>, width: u32) -> Image {
     // now lets crop, remove all the empty entries
     let cards = images
-        .iter_mut()
+        .iter()
         .zip(page_metadata().into_iter())
         .flat_map(|(img, meta)| {
             crop::crop_cards(img)
@@ -97,5 +97,6 @@ pub fn stitch_cards(images: &mut Vec<Image>) -> Image {
             img
         })
         .collect();
-    stitch::stitch_images(cards, 4 * 5)
+    println!("stitched cards");
+    stitch::stitch_images(cards, width)
 }

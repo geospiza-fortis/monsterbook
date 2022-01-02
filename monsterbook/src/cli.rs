@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if *generate_stats {
                 return Ok(println!("{:?}", utils::get_empty_card_mse(&mut images)));
             }
-            let stitched = utils::stitch_cards(&mut images);
+            let stitched = utils::stitch_cards(&mut images, 4 * 6);
             crop::imsave(&output, &stitched)?;
         }
     }
