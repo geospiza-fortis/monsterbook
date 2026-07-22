@@ -150,6 +150,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             let entries = session.transcribe();
             let doc = serde_json::json!({ "data": entries });
+            if let Some(parent) = output.parent() {
+                fs::create_dir_all(parent)?;
+            }
             fs::write(output, serde_json::to_string_pretty(&doc)?)?;
         }
         Commands::Transcribe { source, output } => {

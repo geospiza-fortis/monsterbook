@@ -33,6 +33,11 @@ pub fn match_reference_page(img: &Image) -> (u32, u32) {
     vision::match_reference_page(img, &assets::REFERENCE_PAGE)
 }
 
+// TODO(Phase 5+): image 0.23 (via the `image` crate's `webp` feature) can
+// only decode *lossless* WebP; screenshots saved as lossy WebP (a plausible
+// clipboard/mobile-export source) will fail to decode here. Revisit with a
+// newer `image` version (0.24+ added libwebp-based lossy decode) or a
+// dedicated `webp` crate if lossy WebP input becomes a real need.
 pub fn imread(source: &Path) -> Result<Image, ImageError> {
     Ok(image::io::Reader::open(source)?
         .with_guessed_format()?
@@ -142,6 +147,19 @@ pub fn match_min_mse(img: &Image, refs: &[Image]) -> (usize, u32) {
         .enumerate()
         .map(|(i, r)| (i, vision::mse(img, r)))
         .min_by_key(|(_, m)| *m)
+        .unwrap()
+}
+
+/// Index of the closest reference image by maximum zero-mean normalized
+/// cross-correlation (and that correlation, in [-1, 1]). Used for page
+/// identification instead of `match_min_mse`: it is invariant to the small
+/// global brightness/contrast differences between screenshots, which raw
+/// grayscale MSE is not.
+pub fn match_max_ncc(img: &Image, refs: &[Image]) -> (usize, f64) {
+    refs.iter()
+        .enumerate()
+        .map(|(i, r)| (i, vision::ncc(img, r)))
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .unwrap()
 }
 

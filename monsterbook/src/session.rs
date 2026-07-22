@@ -92,8 +92,8 @@ impl Session {
         if page.width() != self.layout.page_width || page.height() != self.layout.page_height {
             return Err(IngestError::NoPageFound);
         }
-        let (page_id, best_mse) = pipeline::match_min_mse(&page, &assets::REFERENCE_PAGES_WIN);
-        if best_mse > self.layout.page_mse_threshold {
+        let (page_id, best_ncc) = pipeline::match_max_ncc(&page, &assets::REFERENCE_PAGES_WIN);
+        if best_ncc < self.layout.page_ncc_threshold {
             return Err(IngestError::NoPageFound);
         }
         self.pages.insert(page_id, page);
@@ -240,6 +240,34 @@ mod tests {
             let (_, best) = pipeline::match_min_mse(&solid, refs);
             assert!(best > threshold * 2, "solid {} mse {}", v, best);
         }
+    }
+
+    #[test]
+    fn test_page_ncc_threshold_margins() {
+        // the calibration behind Layout::page_ncc_threshold: a genuine page
+        // matches its reference near 1.0, while non-book images (constant
+        // fill or noise, which have ~zero variance/structure) score far
+        // below the threshold.
+        let refs = &assets::REFERENCE_PAGES_WIN;
+        let threshold = WIN_HD.page_ncc_threshold;
+        for r in refs.iter() {
+            let (_, best) = pipeline::match_max_ncc(r, refs);
+            assert!(best > 0.99, "self-match ncc {}", best);
+        }
+        for v in [0u8, 64, 128, 192, 255] {
+            let solid = RgbaImage::from_pixel(165, 225, Rgba([v, v, v, 255]));
+            let (_, best) = pipeline::match_max_ncc(&solid, refs);
+            assert!(best < threshold, "solid {} ncc {}", v, best);
+        }
+        // pseudo-random noise, deterministic so the test is reproducible
+        let mut state: u32 = 12345;
+        let noise = RgbaImage::from_fn(165, 225, |_, _| {
+            state = state.wrapping_mul(1103515245).wrapping_add(12345);
+            let v = ((state >> 16) & 0xff) as u8;
+            Rgba([v, v, v, 255])
+        });
+        let (_, best) = pipeline::match_max_ncc(&noise, refs);
+        assert!(best < threshold, "noise ncc {}", best);
     }
 
     #[test]

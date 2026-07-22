@@ -129,6 +129,82 @@ pub fn crop_tag(card: &Image, layout: &Layout) -> Image {
     .to_image()
 }
 
+/// Sobel edge-magnitude of a grayscale image, computed the same way as the
+/// old JS app's `sobel()` in `src/image.js`: convolve with the horizontal and
+/// vertical 3x3 Sobel kernels and sum the (unsigned) results per-pixel.
+/// Operating on edge magnitude rather than raw grayscale is far more robust
+/// to the small (5-10%) crop-margin drift seen on real screenshots, since
+/// flat page-background regions (which dominate raw MSE and are nearly
+/// identical across all pages) contribute ~0 while card borders and art
+/// dominate the signal.
+pub fn sobel_magnitude(img: &Image) -> Array2<i32> {
+    let gray = into_grayscale_array(img).mapv(|x| x as i32);
+    let (h, w) = gray.dim();
+    let gx_k: [[i32; 3]; 3] = [[1, 0, -1], [2, 0, -2], [1, 0, -1]];
+    let gy_k: [[i32; 3]; 3] = [[1, 2, 1], [0, 0, 0], [-1, -2, -1]];
+    let mut out = Array2::<i32>::zeros((h, w));
+    for y in 0..h {
+        for x in 0..w {
+            let mut gx = 0i32;
+            let mut gy = 0i32;
+            for dy in 0..3usize {
+                for dx in 0..3usize {
+                    // clamp-to-edge sampling at the border
+                    let sy = (y as isize + dy as isize - 1).clamp(0, h as isize - 1) as usize;
+                    let sx = (x as isize + dx as isize - 1).clamp(0, w as isize - 1) as usize;
+                    let v = gray[[sy, sx]];
+                    gx += v * gx_k[dy][dx];
+                    gy += v * gy_k[dy][dx];
+                }
+            }
+            out[[y, x]] = gx.abs() + gy.abs();
+        }
+    }
+    out
+}
+
+/// Mean-squared error between the Sobel edge magnitudes of two images. See
+/// `sobel_magnitude` for why this is more robust to crop drift than raw
+/// grayscale `mse`.
+pub fn mse_edges(img: &Image, reference: &Image) -> u32 {
+    let a = sobel_magnitude(img);
+    let b = sobel_magnitude(reference);
+    let acc: i64 = a
+        .iter()
+        .zip(b.iter())
+        .map(|(x, y)| ((*x - *y) as i64).pow(2))
+        .sum();
+    let denom = (img.width() * img.height()) as i64;
+    (acc / denom) as u32
+}
+
+/// Zero-mean normalized cross-correlation between two same-size grayscale
+/// images, in [-1, 1] (1 = identical up to a linear brightness/contrast
+/// shift). Unlike MSE this is invariant to the small global
+/// brightness/contrast differences between screenshots (different
+/// monitor/gamma settings, JPEG-vs-PNG capture, etc.), which is a plausible
+/// source of the poor MSE margins seen on real screenshots.
+pub fn ncc(img: &Image, reference: &Image) -> f64 {
+    let a = into_grayscale_array(img).mapv(|x| x as f64);
+    let b = into_grayscale_array(reference).mapv(|x| x as f64);
+    let mean_a = a.mean().unwrap();
+    let mean_b = b.mean().unwrap();
+    let mut num = 0.0f64;
+    let mut da = 0.0f64;
+    let mut db = 0.0f64;
+    for (x, y) in a.iter().zip(b.iter()) {
+        let dx = x - mean_a;
+        let dy = y - mean_b;
+        num += dx * dy;
+        da += dx * dx;
+        db += dy * dy;
+    }
+    if da == 0.0 || db == 0.0 {
+        return 0.0;
+    }
+    num / (da.sqrt() * db.sqrt())
+}
+
 pub fn mse(img: &Image, reference: &Image) -> u32 {
     let gray_img = into_grayscale_array(img);
     let gray_ref = into_grayscale_array(reference);

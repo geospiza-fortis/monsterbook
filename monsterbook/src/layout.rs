@@ -35,7 +35,24 @@ pub struct Layout {
     /// closest non-book image tried (a solid gray 192 fill) scores 997 and
     /// random noise scores ~12000. 300 leaves an order-of-magnitude margin on
     /// both sides.
+    ///
+    /// Deprecated by `page_ncc_threshold` for page *identification*, but
+    /// still kept (and still tested) as it remains a reasonable
+    /// page-vs-noise rejection rule and existing callers (`Transcribe`,
+    /// `ReferenceBook`) still key off the embedded `REFERENCE_PAGES*` MSE
+    /// tables.
     pub page_mse_threshold: u32,
+    /// Zero-mean normalized cross-correlation (in [-1, 1]) against the
+    /// closest embedded reference page below which a cropped page is
+    /// rejected as "not a monster book page". Calibrated on 26 real
+    /// collected-book screenshots (see
+    /// `data/processed/reference_new/REPORT.md`): every real page scores at
+    /// least ~0.50 against its best (possibly wrong, since the reference set
+    /// predates several new pages) reference match, while a solid fill or
+    /// random noise image scores ~0.0 against every reference (NCC is
+    /// undefined/zero for a constant image). 0.3 leaves comfortable margin
+    /// on both sides while still being decisive against non-book input.
+    pub page_ncc_threshold: f64,
 }
 
 pub const WIN_HD: Layout = Layout {
@@ -54,6 +71,7 @@ pub const WIN_HD: Layout = Layout {
     tag_height: 9,
     unseen_mse_threshold: 5000,
     page_mse_threshold: 300,
+    page_ncc_threshold: 0.3,
 };
 
 #[cfg(test)]
