@@ -55,6 +55,9 @@ pub struct Layout {
     pub page_ncc_threshold: f64,
 }
 
+/// Cards per row when stitching all non-empty cards into one image.
+pub const STITCH_CARDS_PER_ROW: u32 = 24;
+
 pub const WIN_HD: Layout = Layout {
     page_width: 165,
     page_height: 225,

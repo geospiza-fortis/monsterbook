@@ -1,7 +1,7 @@
 //! Stitch the non-empty cards of the embedded reference_v2 pages into one
 //! grid PNG.
 use monsterbook::assets::REFERENCE_PAGES_WIN;
-use monsterbook::layout::WIN_HD;
+use monsterbook::layout::{STITCH_CARDS_PER_ROW, WIN_HD};
 use monsterbook::pipeline;
 use std::path::PathBuf;
 
@@ -10,7 +10,7 @@ fn main() {
         .nth(1)
         .expect("usage: stitch_reference <output.png>")
         .into();
-    let stitched = pipeline::stitch_cards(&REFERENCE_PAGES_WIN, 4 * 6, &WIN_HD);
+    let stitched = pipeline::stitch_cards(&REFERENCE_PAGES_WIN, STITCH_CARDS_PER_ROW, &WIN_HD);
     pipeline::imsave(&output, &stitched).unwrap();
     println!(
         "wrote {} ({}x{}, {} pages)",

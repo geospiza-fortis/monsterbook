@@ -1,7 +1,7 @@
 extern crate clap;
 
 use clap::{Parser, Subcommand};
-use monsterbook::layout::WIN_HD;
+use monsterbook::layout::{STITCH_CARDS_PER_ROW, WIN_HD};
 use monsterbook::{pipeline, vision};
 use std::fs;
 use std::path::PathBuf;
@@ -127,7 +127,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if *generate_stats {
                 return Ok(println!("{:?}", pipeline::empty_card_mse(&images, &WIN_HD)));
             }
-            let stitched = pipeline::stitch_cards(&images, 4 * 6, &WIN_HD);
+            let stitched = pipeline::stitch_cards(&images, STITCH_CARDS_PER_ROW, &WIN_HD);
             println!("stitched cards");
             pipeline::imsave(output, &stitched)?;
         }

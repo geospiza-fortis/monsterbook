@@ -196,15 +196,19 @@ pub fn transcribe_page(page: &Image, page_id: usize, book: &Book, layout: &Layou
     let seeds = &assets::SEED_TAGS;
     let empty = &assets::EMPTY_CARD;
     let offsets = book.offsets();
-    let cards: Vec<Image> = vision::crop_cards(page, layout)
+    let cards: Vec<(Image, u32)> = vision::crop_cards(page, layout)
         .into_iter()
-        .filter(|card| vision::mse(card, empty) > layout.empty_mse_threshold)
+        .map(|card| {
+            let mse = vision::mse(&card, empty);
+            (card, mse)
+        })
+        .filter(|(_, mse)| *mse > layout.empty_mse_threshold)
         .collect();
     let mut data = Vec::new();
-    for (i, card) in cards.iter().enumerate() {
+    for (i, (card, mse)) in cards.iter().enumerate() {
         let uid = offsets[page_id] + i;
         let mut count = 0;
-        if vision::mse(card, empty) > layout.unseen_mse_threshold {
+        if *mse > layout.unseen_mse_threshold {
             let tag = vision::crop_tag(card, layout);
             count = match_min_mse(&tag, seeds).0 as u32 + 1;
         }
