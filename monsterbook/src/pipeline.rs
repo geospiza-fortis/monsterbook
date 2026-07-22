@@ -182,7 +182,7 @@ fn entry_name(book: &Book, offsets: &[usize], uid: usize) -> String {
 /// count is read from its tag against the seed digits (or 0 if the card is
 /// registered but unseen).
 pub fn transcribe(pages: &[Image], book: &Book, layout: &Layout) -> Vec<Entry> {
-    let refs = &assets::REFERENCE_PAGES;
+    let refs = &assets::REFERENCE_PAGES_WIN;
     let mut data = Vec::new();
     for page in pages {
         let (index, _) = match_min_mse(page, refs);
@@ -249,9 +249,9 @@ mod tests {
     fn test_transcribe_reference_pages() {
         // transcribing the reference book against itself: every page matches
         // its own index, and a mostly-unregistered book yields few entries
-        let pages: Vec<Image> = assets::REFERENCE_PAGES.iter().cloned().collect();
+        let pages: Vec<Image> = assets::REFERENCE_PAGES_WIN.iter().cloned().collect();
         let entries = transcribe(&pages, &assets::BOOK, &WIN_HD);
-        assert!(entries.len() <= 418);
+        assert!(entries.len() <= 538);
         let offsets = assets::BOOK.offsets();
         for entry in &entries {
             assert!(entry.uid < *offsets.last().unwrap());
@@ -265,8 +265,8 @@ mod tests {
     #[test]
     fn test_reference_page_names() {
         let names = reference_page_names();
-        assert_eq!(names.len(), 23);
+        assert_eq!(names.len(), 26);
         assert_eq!(names[0], "00_red_0.png");
-        assert_eq!(names[22], "22_gold_2.png");
+        assert_eq!(names[25], "25_gold_3.png");
     }
 }

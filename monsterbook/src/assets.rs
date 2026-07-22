@@ -37,46 +37,48 @@ pub static SEED_TAGS: Lazy<Vec<Image>> = Lazy::new(|| {
     .collect()
 });
 
-/// The embedded reference pages resized to the WIN_HD page size. The
-/// reference screenshots were captured on the mac client at exactly twice
-/// the windows client resolution (see python/utils.py `crop_mac`), so a
-/// simple downscale lines them up with pages cropped via the WIN_HD layout.
+/// The 26 embedded reference pages, one per `book.json` page in page order,
+/// at native WIN_HD (165x225) scale: they are direct crops of real
+/// screenshots (`data/processed/reference_new/{00..25}.png`, see
+/// `data/processed/reference_new/REPORT.md`), not resized from a
+/// higher-resolution source, so no rescale step is needed.
+///
+/// This replaces the pre-Phase-5 mac-scale `REFERENCE_PAGES` (22 images,
+/// downscaled 2x at load time to line up with WIN_HD) which is now dropped
+/// entirely: it only covered 22 of the book's (now) 26 pages, its
+/// page-order no longer matches the new `book.json`, and dropping it saves
+/// ~1.6MB of embedded (and wasm-shipped) image data that would otherwise be
+/// redundant with these 26 native-scale crops. The old mac reference PNGs
+/// remain on disk under `src/assets/reference/` (and in git history) but
+/// are no longer compiled in.
 pub static REFERENCE_PAGES_WIN: Lazy<Vec<Image>> = Lazy::new(|| {
-    use crate::layout::WIN_HD;
-    use image::imageops::{self, FilterType};
-    REFERENCE_PAGES
-        .iter()
-        .map(|img| imageops::resize(img, WIN_HD.page_width, WIN_HD.page_height, FilterType::Triangle))
-        .collect()
-});
-
-/// Cropped reference book pages in page order, used to identify which page a
-/// screenshot belongs to. Only 22 pages exist: the final gold page has no
-/// reference screenshot.
-pub static REFERENCE_PAGES: Lazy<Vec<Image>> = Lazy::new(|| {
     [
-        include_bytes!("assets/reference/00_red_0.png").as_slice(),
-        include_bytes!("assets/reference/01_orange_0.png").as_slice(),
-        include_bytes!("assets/reference/02_orange_1.png").as_slice(),
-        include_bytes!("assets/reference/03_orange_2.png").as_slice(),
-        include_bytes!("assets/reference/04_lightgreen_0.png").as_slice(),
-        include_bytes!("assets/reference/05_lightgreen_1.png").as_slice(),
-        include_bytes!("assets/reference/06_lightgreen_2.png").as_slice(),
-        include_bytes!("assets/reference/07_lightgreen_3.png").as_slice(),
-        include_bytes!("assets/reference/08_green_0.png").as_slice(),
-        include_bytes!("assets/reference/09_green_1.png").as_slice(),
-        include_bytes!("assets/reference/10_green_2.png").as_slice(),
-        include_bytes!("assets/reference/11_lightblue_0.png").as_slice(),
-        include_bytes!("assets/reference/12_lightblue_1.png").as_slice(),
-        include_bytes!("assets/reference/13_lightblue_2.png").as_slice(),
-        include_bytes!("assets/reference/14_blue_0.png").as_slice(),
-        include_bytes!("assets/reference/15_blue_1.png").as_slice(),
-        include_bytes!("assets/reference/16_purple_0.png").as_slice(),
-        include_bytes!("assets/reference/17_purple_1.png").as_slice(),
-        include_bytes!("assets/reference/18_black_0.png").as_slice(),
-        include_bytes!("assets/reference/19_black_1.png").as_slice(),
-        include_bytes!("assets/reference/20_gold_0.png").as_slice(),
-        include_bytes!("assets/reference/21_gold_1.png").as_slice(),
+        include_bytes!("assets/reference_v2/00.png").as_slice(),
+        include_bytes!("assets/reference_v2/01.png").as_slice(),
+        include_bytes!("assets/reference_v2/02.png").as_slice(),
+        include_bytes!("assets/reference_v2/03.png").as_slice(),
+        include_bytes!("assets/reference_v2/04.png").as_slice(),
+        include_bytes!("assets/reference_v2/05.png").as_slice(),
+        include_bytes!("assets/reference_v2/06.png").as_slice(),
+        include_bytes!("assets/reference_v2/07.png").as_slice(),
+        include_bytes!("assets/reference_v2/08.png").as_slice(),
+        include_bytes!("assets/reference_v2/09.png").as_slice(),
+        include_bytes!("assets/reference_v2/10.png").as_slice(),
+        include_bytes!("assets/reference_v2/11.png").as_slice(),
+        include_bytes!("assets/reference_v2/12.png").as_slice(),
+        include_bytes!("assets/reference_v2/13.png").as_slice(),
+        include_bytes!("assets/reference_v2/14.png").as_slice(),
+        include_bytes!("assets/reference_v2/15.png").as_slice(),
+        include_bytes!("assets/reference_v2/16.png").as_slice(),
+        include_bytes!("assets/reference_v2/17.png").as_slice(),
+        include_bytes!("assets/reference_v2/18.png").as_slice(),
+        include_bytes!("assets/reference_v2/19.png").as_slice(),
+        include_bytes!("assets/reference_v2/20.png").as_slice(),
+        include_bytes!("assets/reference_v2/21.png").as_slice(),
+        include_bytes!("assets/reference_v2/22.png").as_slice(),
+        include_bytes!("assets/reference_v2/23.png").as_slice(),
+        include_bytes!("assets/reference_v2/24.png").as_slice(),
+        include_bytes!("assets/reference_v2/25.png").as_slice(),
     ]
     .iter()
     .map(|bytes| decode_png(bytes))

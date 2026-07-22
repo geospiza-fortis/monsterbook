@@ -106,12 +106,12 @@ impl Session {
         self.pages.extend(other.pages);
     }
 
-    /// Page ids not yet ingested. Page 22 (gold_2) is excluded: there is no
-    /// embedded reference screenshot for it, so it can never be identified by
-    /// ingestion and would otherwise be permanently "missing". Revisit in
-    /// Phase 5.
+    /// Page ids not yet ingested. All 26 pages now have an embedded
+    /// reference screenshot (`assets::REFERENCE_PAGES_WIN`), so none are
+    /// permanently excluded (unlike the pre-Phase-5 22-page set, which had
+    /// no reference for the final gold page).
     pub fn missing(&self) -> Vec<usize> {
-        (0..assets::REFERENCE_PAGES.len())
+        (0..assets::REFERENCE_PAGES_WIN.len())
             .filter(|id| !self.pages.contains_key(id))
             .collect()
     }
@@ -184,10 +184,17 @@ mod tests {
 
     #[test]
     fn test_add_bitmap_identifies_page() {
+        // pad the page into a larger canvas (as a real screenshot would
+        // have surrounding UI chrome) so phase correlation against the
+        // single-page anchor has real structure to lock onto; a bare
+        // page-sized bitmap with no surrounding context is not a realistic
+        // input and phase-correlates unreliably.
         let mut session = Session::new();
-        let img = assets::REFERENCE_PAGES_WIN[0].clone();
-        let (w, h) = (img.width(), img.height());
-        let page_id = session.add_bitmap(w, h, img.into_raw()).unwrap();
+        let page = &assets::REFERENCE_PAGES_WIN[0];
+        let mut canvas = RgbaImage::from_pixel(400, 300, Rgba([20, 20, 20, 255]));
+        image::imageops::overlay(&mut canvas, page, 40, 30);
+        let (w, h) = (canvas.width(), canvas.height());
+        let page_id = session.add_bitmap(w, h, canvas.into_raw()).unwrap();
         assert_eq!(page_id, 0);
     }
 
@@ -200,15 +207,14 @@ mod tests {
     }
 
     #[test]
-    fn test_missing_shrinks_and_excludes_gold_2() {
+    fn test_missing_shrinks() {
         let mut session = Session::new();
         let missing = session.missing();
-        // 22 identifiable pages; page 22 (gold_2) is excluded
-        assert_eq!(missing.len(), 22);
-        assert!(!missing.contains(&22));
+        // all 26 pages are identifiable now
+        assert_eq!(missing.len(), 26);
         session.add_screenshot(&encoded_reference(0)).unwrap();
         let missing = session.missing();
-        assert_eq!(missing.len(), 21);
+        assert_eq!(missing.len(), 25);
         assert!(!missing.contains(&0));
     }
 
