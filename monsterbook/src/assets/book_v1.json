@@ -4,7 +4,7 @@
       "page_id": 0,
       "tab_color": "red",
       "tab_index": 0,
-      "card_count": 17,
+      "card_count": 13,
       "entries": [
         "Snail",
         "Blue Snail",
@@ -18,11 +18,7 @@
         "Ribbon Pig",
         "Octopus",
         "Green Mushroom",
-        "Bubbling",
-        "unknown-13",
-        "unknown-14",
-        "unknown-15",
-        "unknown-16"
+        "Bubbling"
       ]
     },
     {
@@ -95,25 +91,9 @@
       "page_id": 3,
       "tab_color": "orange",
       "tab_index": 2,
-      "card_count": 17,
+      "card_count": 1,
       "entries": [
-        "unknown-67",
-        "unknown-68",
-        "unknown-69",
-        "unknown-70",
-        "unknown-71",
-        "unknown-72",
-        "unknown-73",
-        "unknown-74",
-        "unknown-75",
-        "unknown-76",
-        "unknown-77",
-        "unknown-78",
-        "unknown-79",
-        "unknown-80",
-        "unknown-81",
-        "unknown-82",
-        "unknown-83"
+        "Goat"
       ]
     },
     {
@@ -219,52 +199,22 @@
       "page_id": 7,
       "tab_color": "lightgreen",
       "tab_index": 3,
-      "card_count": 25,
+      "card_count": 10,
       "entries": [
-        "unknown-159",
-        "unknown-160",
-        "unknown-161",
-        "unknown-162",
-        "unknown-163",
-        "unknown-164",
-        "unknown-165",
-        "unknown-166",
-        "unknown-167",
-        "unknown-168",
-        "unknown-169",
-        "unknown-170",
-        "unknown-171",
-        "unknown-172",
-        "unknown-173",
-        "unknown-174",
-        "unknown-175",
-        "unknown-176",
-        "unknown-177",
-        "unknown-178",
-        "unknown-179",
-        "unknown-180",
-        "unknown-181",
-        "unknown-182",
-        "unknown-183"
+        "Freezer",
+        "Octobunny",
+        "Chlorotrap",
+        "Big Cloud Fox",
+        "Paper Lantern Ghost",
+        "Extra A",
+        "Black Goat",
+        "Cow",
+        "Plow Ox",
+        "Black Sheep"
       ]
     },
     {
       "page_id": 8,
-      "tab_color": "lightgreen",
-      "tab_index": 4,
-      "card_count": 7,
-      "entries": [
-        "unknown-184",
-        "unknown-185",
-        "unknown-186",
-        "unknown-187",
-        "unknown-188",
-        "unknown-189",
-        "unknown-190"
-      ]
-    },
-    {
-      "page_id": 9,
       "tab_color": "green",
       "tab_index": 0,
       "card_count": 25,
@@ -297,7 +247,7 @@
       ]
     },
     {
-      "page_id": 10,
+      "page_id": 9,
       "tab_color": "green",
       "tab_index": 1,
       "card_count": 25,
@@ -330,58 +280,35 @@
       ]
     },
     {
-      "page_id": 11,
+      "page_id": 10,
       "tab_color": "green",
       "tab_index": 2,
-      "card_count": 25,
+      "card_count": 20,
       "entries": [
-        "unknown-241",
-        "unknown-242",
-        "unknown-243",
-        "unknown-244",
-        "unknown-245",
-        "unknown-246",
-        "unknown-247",
-        "unknown-248",
-        "unknown-249",
-        "unknown-250",
-        "unknown-251",
-        "unknown-252",
-        "unknown-253",
-        "unknown-254",
-        "unknown-255",
-        "unknown-256",
-        "unknown-257",
-        "unknown-258",
-        "unknown-259",
-        "unknown-260",
-        "unknown-261",
-        "unknown-262",
-        "unknown-263",
-        "unknown-264",
-        "unknown-265"
+        "Tree Rod",
+        "Mossy Mushroom",
+        "Primitive Boar",
+        "Stone Bug",
+        "Emo Slime",
+        "Trucker",
+        "Tippo Red",
+        "Dark Fission",
+        "Tippo Blue",
+        "Oly Oly",
+        "Pac Pinky",
+        "Scaredy Scarlion",
+        "Ratatula",
+        "Selkie Jr.",
+        "Nightghost",
+        "Water Goblin",
+        "Extra B",
+        "Extra C",
+        "Chunin",
+        "Kunoichi"
       ]
     },
     {
-      "page_id": 12,
-      "tab_color": "green",
-      "tab_index": 3,
-      "card_count": 10,
-      "entries": [
-        "unknown-266",
-        "unknown-267",
-        "unknown-268",
-        "unknown-269",
-        "unknown-270",
-        "unknown-271",
-        "unknown-272",
-        "unknown-273",
-        "unknown-274",
-        "unknown-275"
-      ]
-    },
-    {
-      "page_id": 13,
+      "page_id": 11,
       "tab_color": "lightblue",
       "tab_index": 0,
       "card_count": 25,
@@ -414,7 +341,7 @@
       ]
     },
     {
-      "page_id": 14,
+      "page_id": 12,
       "tab_color": "lightblue",
       "tab_index": 1,
       "card_count": 25,
@@ -447,29 +374,16 @@
       ]
     },
     {
-      "page_id": 15,
+      "page_id": 13,
       "tab_color": "lightblue",
       "tab_index": 2,
-      "card_count": 14,
+      "card_count": 1,
       "entries": [
-        "unknown-326",
-        "unknown-327",
-        "unknown-328",
-        "unknown-329",
-        "unknown-330",
-        "unknown-331",
-        "unknown-332",
-        "unknown-333",
-        "unknown-334",
-        "unknown-335",
-        "unknown-336",
-        "unknown-337",
-        "unknown-338",
-        "unknown-339"
+        "Leader B"
       ]
     },
     {
-      "page_id": 16,
+      "page_id": 14,
       "tab_color": "blue",
       "tab_index": 0,
       "card_count": 25,
@@ -502,30 +416,21 @@
       ]
     },
     {
-      "page_id": 17,
+      "page_id": 15,
       "tab_color": "blue",
       "tab_index": 1,
-      "card_count": 15,
+      "card_count": 6,
       "entries": [
-        "unknown-365",
-        "unknown-366",
-        "unknown-367",
-        "unknown-368",
-        "unknown-369",
-        "unknown-370",
-        "unknown-371",
-        "unknown-372",
-        "unknown-373",
-        "unknown-374",
-        "unknown-375",
-        "unknown-376",
-        "unknown-377",
-        "unknown-378",
-        "unknown-379"
+        "Booper Scarlion",
+        "Berserkie",
+        "Vikerola",
+        "Veetron",
+        "Black Bear Swordsman",
+        "White Tiger Swordsman"
       ]
     },
     {
-      "page_id": 18,
+      "page_id": 16,
       "tab_color": "purple",
       "tab_index": 0,
       "card_count": 25,
@@ -558,29 +463,23 @@
       ]
     },
     {
-      "page_id": 19,
+      "page_id": 17,
       "tab_color": "purple",
       "tab_index": 1,
-      "card_count": 14,
+      "card_count": 8,
       "entries": [
-        "unknown-405",
-        "unknown-406",
-        "unknown-407",
-        "unknown-408",
-        "unknown-409",
-        "unknown-410",
-        "unknown-411",
-        "unknown-412",
-        "unknown-413",
-        "unknown-414",
-        "unknown-415",
-        "unknown-416",
-        "unknown-417",
-        "unknown-418"
+        "Wooden Fish",
+        "Censer",
+        "Female Thief",
+        "Male Thief",
+        "Eagle Swordsman",
+        "Dreamy Ghost",
+        "Male Boss",
+        "Ninto"
       ]
     },
     {
-      "page_id": 20,
+      "page_id": 18,
       "tab_color": "black",
       "tab_index": 0,
       "card_count": 25,
@@ -613,32 +512,20 @@
       ]
     },
     {
-      "page_id": 21,
+      "page_id": 19,
       "tab_color": "black",
       "tab_index": 1,
-      "card_count": 17,
+      "card_count": 5,
       "entries": [
-        "unknown-444",
-        "unknown-445",
-        "unknown-446",
-        "unknown-447",
-        "unknown-448",
-        "unknown-449",
-        "unknown-450",
-        "unknown-451",
-        "unknown-452",
-        "unknown-453",
-        "unknown-454",
-        "unknown-455",
-        "unknown-456",
-        "unknown-457",
-        "unknown-458",
-        "unknown-459",
-        "unknown-460"
+        "Maverick Y",
+        "Eruwater",
+        "Maverick B",
+        "Maverick V",
+        "Jiaoceng"
       ]
     },
     {
-      "page_id": 22,
+      "page_id": 20,
       "tab_color": "gold",
       "tab_index": 0,
       "card_count": 25,
@@ -671,7 +558,7 @@
       ]
     },
     {
-      "page_id": 23,
+      "page_id": 21,
       "tab_color": "gold",
       "tab_index": 1,
       "card_count": 25,
@@ -704,47 +591,11 @@
       ]
     },
     {
-      "page_id": 24,
+      "page_id": 22,
       "tab_color": "gold",
       "tab_index": 2,
-      "card_count": 25,
-      "entries": [
-        "unknown-511",
-        "unknown-512",
-        "unknown-513",
-        "unknown-514",
-        "unknown-515",
-        "unknown-516",
-        "unknown-517",
-        "unknown-518",
-        "unknown-519",
-        "unknown-520",
-        "unknown-521",
-        "unknown-522",
-        "unknown-523",
-        "unknown-524",
-        "unknown-525",
-        "unknown-526",
-        "unknown-527",
-        "unknown-528",
-        "unknown-529",
-        "unknown-530",
-        "unknown-531",
-        "unknown-532",
-        "unknown-533",
-        "unknown-534",
-        "unknown-535"
-      ]
-    },
-    {
-      "page_id": 25,
-      "tab_color": "gold",
-      "tab_index": 3,
-      "card_count": 2,
-      "entries": [
-        "unknown-536",
-        "unknown-537"
-      ]
+      "card_count": 4,
+      "entries": []
     }
   ]
 }

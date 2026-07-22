@@ -52,34 +52,43 @@ mod tests {
 
     #[test]
     fn test_book_pages() {
-        assert_eq!(BOOK.pages.len(), 23);
+        // Phase 5: 26 pages, tab colors/counts inferred from the ribbon
+        // signal (validated 15/15 against confirmed old->new page mappings,
+        // see data/processed/reference_new/REPORT.md) plus order-preserving
+        // interpolation for the rest.
+        assert_eq!(BOOK.pages.len(), 26);
         assert_eq!(BOOK.pages[0].tab_color, "red");
-        assert_eq!(BOOK.pages[0].card_count, 13);
+        assert_eq!(BOOK.pages[0].card_count, 17);
         let last = BOOK.pages.last().unwrap();
         assert_eq!(last.tab_color, "gold");
-        assert_eq!(last.tab_index, 2);
+        assert_eq!(last.tab_index, 3);
     }
 
     #[test]
     fn test_book_entries() {
         let total_cards: usize = BOOK.pages.iter().map(|p| p.card_count).sum();
         let total_entries: usize = BOOK.pages.iter().map(|p| p.entries.len()).sum();
-        assert_eq!(total_cards, 418);
-        // entries.txt only covers the first 22 pages; the final gold page has
-        // no known entries
-        assert_eq!(total_entries, 414);
-        for page in BOOK.pages.iter().take(22) {
+        // card_count is a lower bound (colored+sketch slots measured via
+        // slot_states; placeholder slots can't be distinguished from
+        // nonexistent card slots without an authoritative monster list --
+        // see data/processed/reference_new/REPORT.md section 3).
+        assert_eq!(total_cards, 538);
+        assert_eq!(total_entries, 538);
+        // every slot has an entries[] cell: either a name carried over from
+        // the matched old page, or an "unknown-<uid>" placeholder.
+        for page in BOOK.pages.iter() {
             assert_eq!(page.entries.len(), page.card_count);
         }
         assert_eq!(BOOK.pages[0].entries[0], "Snail");
-        assert_eq!(BOOK.pages[21].entries.last().unwrap(), "Giant Centipede");
+        // page 3 (new, unmapped to any old page) is entirely unknown
+        assert!(BOOK.pages[3].entries.iter().all(|e| e.starts_with("unknown-")));
     }
 
     #[test]
     fn test_offsets() {
         let offsets = BOOK.offsets();
         assert_eq!(offsets[0], 0);
-        assert_eq!(offsets[1], 13);
-        assert_eq!(*offsets.last().unwrap(), 418);
+        assert_eq!(offsets[1], 17);
+        assert_eq!(*offsets.last().unwrap(), 538);
     }
 }
