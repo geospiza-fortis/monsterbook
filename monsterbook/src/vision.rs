@@ -1,44 +1,13 @@
-use image::{imageops, io, ImageBuffer, ImageError, Rgba, RgbaImage};
+//! Pure image primitives: no file I/O, no embedded assets.
+use crate::layout::Layout;
+use image::{imageops, ImageBuffer, Rgba, RgbaImage};
 use ndarray::{stack, Array2, ArrayBase, Axis, ViewRepr};
 use nshare::ToNdarray2;
 use rustfft::{num_complex::Complex, FftDirection, FftPlanner};
-use std::io::Cursor;
-use std::path::Path;
 
 pub type Image = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
-fn path_as_string(path: &Path) -> String {
-    path.to_path_buf().into_os_string().into_string().unwrap()
-}
-
-pub fn imread(source: &Path) -> Result<Image, ImageError> {
-    Ok(io::Reader::open(&path_as_string(source))?
-        .with_guessed_format()?
-        .decode()?
-        .into_rgba8())
-}
-
-pub fn imsave(output: &Path, img: &Image) -> Result<(), ImageError> {
-    img.save(&path_as_string(output))
-}
-
-fn get_empty_card() -> Result<Image, ImageError> {
-    let reference_bytes = include_bytes!("assets/empty_card.png");
-    Ok(io::Reader::new(Cursor::new(reference_bytes))
-        .with_guessed_format()?
-        .decode()?
-        .into_rgba8())
-}
-
-fn get_reference_page() -> Result<Image, ImageError> {
-    let reference_bytes = include_bytes!("assets/reference_page_win.png");
-    Ok(io::Reader::new(Cursor::new(reference_bytes))
-        .with_guessed_format()?
-        .decode()?
-        .into_rgba8())
-}
-
-fn into_grayscale_array(img: &Image) -> Array2<u8> {
+pub fn into_grayscale_array(img: &Image) -> Array2<u8> {
     imageops::colorops::grayscale(img).into_ndarray2()
 }
 
@@ -105,9 +74,11 @@ pub fn pad_image(img: &Image, reference: &Image) -> Image {
     background
 }
 
-pub fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
+/// Find the (x, y) offset of the reference page within the image via phase
+/// correlation.
+pub fn match_reference_page(img: &Image, reference_page: &Image) -> (u32, u32) {
     // pad the reference with the original image
-    let reference = pad_image(&get_reference_page()?, img);
+    let reference = pad_image(reference_page, img);
     let mut gray_ref = into_grayscale_array(&reference).mapv(|x| Complex::new(x as f32, 0.0));
     let mut gray_img = into_grayscale_array(img).mapv(|x| Complex::new(x as f32, 0.0));
     phase_correlate(&mut gray_img, &mut gray_ref);
@@ -122,17 +93,16 @@ pub fn match_reference_page(img: &Image) -> Result<(u32, u32), ImageError> {
             maxpos = pos;
         }
     }
-    Ok((maxpos.1 as u32, maxpos.0 as u32))
+    (maxpos.1 as u32, maxpos.0 as u32)
 }
 
-pub fn crop(img: &mut Image, x: u32, y: u32) -> Result<Image, ImageError> {
-    let (height, width) = (225, 165);
-    Ok(imageops::crop(img, x, y, width, height).to_image())
+pub fn crop_page(img: &mut Image, x: u32, y: u32, layout: &Layout) -> Image {
+    imageops::crop(img, x, y, layout.page_width, layout.page_height).to_image()
 }
 
-pub fn crop_cards(img: &Image) -> Result<Vec<Image>, ImageError> {
-    let num_rows: u32 = 5;
-    let num_cols: u32 = 5;
+pub fn crop_cards(img: &Image, layout: &Layout) -> Vec<Image> {
+    let num_rows = layout.grid_rows;
+    let num_cols = layout.grid_cols;
     let h = img.height() / num_rows;
     let w = img.width() / num_cols;
     let mut page = img.clone();
@@ -143,7 +113,7 @@ pub fn crop_cards(img: &Image) -> Result<Vec<Image>, ImageError> {
             cards.push(card);
         }
     }
-    Ok(cards)
+    cards
 }
 
 pub fn mse(img: &Image, reference: &Image) -> u32 {
@@ -160,19 +130,57 @@ pub fn mse(img: &Image, reference: &Image) -> u32 {
     return (acc / denom as i32) as u32;
 }
 
-// good default threshold is 100
-pub fn card_mse(img: &Image) -> u32 {
-    let empty_card = get_empty_card().unwrap();
-    mse(img, &empty_card)
-}
-
 // remove the background from a card
-pub fn replace_background(img: &mut Image, color: Rgba<u8>) {
+pub fn replace_background(img: &mut Image, color: Rgba<u8>, layout: &Layout) {
     // replace the background with our own custom color
     let mut background = RgbaImage::from_fn(img.width(), img.height(), |_, _| color);
-    // see notebook, but we go from [4:-3, 3:-3] in numpy
     let mut cloned = img.clone();
-    let cropped = imageops::crop(&mut cloned, 3, 4, 27, 38);
-    imageops::overlay(&mut background, &cropped, 3, 4);
+    let cropped = imageops::crop(
+        &mut cloned,
+        layout.content_x,
+        layout.content_y,
+        layout.content_width,
+        layout.content_height,
+    );
+    imageops::overlay(&mut background, &cropped, layout.content_x, layout.content_y);
     *img = background;
+}
+
+pub fn stitch_images(images: Vec<Image>, width: u32) -> Image {
+    let x = images[0].width();
+    let y = images[0].height();
+    let n = images.len();
+    let height = (n as f32 / width as f32).ceil() as u32;
+    let mut background = RgbaImage::new(x * width, y * height);
+    for i in 0..height {
+        for j in 0..width {
+            let index = (i * width + j) as usize;
+            if index >= n {
+                break;
+            }
+            let img = &images[index];
+            imageops::overlay(&mut background, img, j * x, i * y);
+        }
+    }
+    background
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stitch_images_dimensions() {
+        let images: Vec<Image> = (0..5).map(|_| RgbaImage::new(10, 20)).collect();
+        let stitched = stitch_images(images, 2);
+        // 5 images, 2 per row -> 3 rows
+        assert_eq!(stitched.width(), 20);
+        assert_eq!(stitched.height(), 60);
+    }
+
+    #[test]
+    fn test_mse_identical_is_zero() {
+        let img = RgbaImage::from_pixel(4, 4, Rgba([100, 150, 200, 255]));
+        assert_eq!(mse(&img, &img.clone()), 0);
+    }
 }

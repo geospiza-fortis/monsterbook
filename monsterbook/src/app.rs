@@ -1,5 +1,6 @@
-use super::crop::{imsave, Image};
-use super::utils;
+use super::layout::WIN_HD;
+use super::pipeline::{self, imsave};
+use super::vision::Image;
 use eframe::{egui, epi};
 use rfd::FileDialog;
 use std::sync::mpsc::Receiver;
@@ -60,7 +61,7 @@ impl<'a> epi::App for App {
                         let (sender, receiver) = std::sync::mpsc::channel();
                         self.crop_in_progress = Some(receiver);
                         thread::spawn(move || {
-                            let images = utils::get_cropped_images(&path).unwrap();
+                            let images = pipeline::load_pages(&path, &WIN_HD).unwrap();
                             sender.send(images).unwrap();
                         });
                     }
@@ -99,7 +100,7 @@ impl<'a> epi::App for App {
                         let cloned = cropped.clone();
                         thread::spawn(move || {
                             // this path should be unique enough to update the current texture
-                            let image = utils::stitch_cards(&cloned, cards_per_row);
+                            let image = pipeline::stitch_cards(&cloned, cards_per_row, &WIN_HD);
                             sender.send((image, String::from(path))).unwrap();
                         });
                     }

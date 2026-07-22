@@ -1,7 +1,8 @@
 extern crate clap;
 
-use clap::{AppSettings, Parser, Subcommand};
-use monsterbook::{crop, stitch, utils};
+use clap::{Parser, Subcommand};
+use monsterbook::layout::WIN_HD;
+use monsterbook::{pipeline, vision};
 use std::fs;
 use std::path::PathBuf;
 
@@ -15,7 +16,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Crop a single screenshot
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     Crop {
         #[clap(required = true, parse(from_os_str))]
         source: PathBuf,
@@ -23,7 +24,7 @@ enum Commands {
         output: PathBuf,
     },
     /// Crop cards from a single screenshot
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     CropCards {
         #[clap(required = true, parse(from_os_str))]
         source: PathBuf,
@@ -31,7 +32,7 @@ enum Commands {
         output: PathBuf,
     },
     /// Generate the reference pages with the appropriate filenames
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     ReferenceBook {
         #[clap(required = true, parse(from_os_str))]
         source: PathBuf,
@@ -39,7 +40,7 @@ enum Commands {
         output: PathBuf,
     },
     /// Create a stitched image of full pages
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     StitchPages {
         #[clap(required = true, parse(from_os_str))]
         source: PathBuf,
@@ -47,7 +48,7 @@ enum Commands {
         output: PathBuf,
     },
     /// Create a stitched image of cards
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    #[clap(arg_required_else_help = true)]
     StitchCards {
         #[clap(required = true, parse(from_os_str))]
         source: PathBuf,
@@ -64,57 +65,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Crop { source, output } => {
             // it's totally possible that the image is poorly formatted, so we
             // guess the type
-            let mut img = crop::imread(source)?;
-            let (x, y) = crop::match_reference_page(&img)?;
-            let cropped = crop::crop(&mut img, x, y)?;
-            crop::imsave(output, &cropped)?;
+            let mut img = pipeline::imread(source)?;
+            let (x, y) = pipeline::match_reference_page(&img);
+            let cropped = vision::crop_page(&mut img, x, y, &WIN_HD);
+            pipeline::imsave(output, &cropped)?;
         }
         Commands::CropCards { source, output } => {
             // it's totally possible that the image is poorly formatted, so we
             // guess the type
-            let mut img = crop::imread(source)?;
-            let (x, y) = crop::match_reference_page(&img)?;
-            let mut cropped = crop::crop(&mut img, x, y)?;
-            // now lets crop, remove all the empty entries
+            let mut img = pipeline::imread(source)?;
+            let (x, y) = pipeline::match_reference_page(&img);
+            let cropped = vision::crop_page(&mut img, x, y, &WIN_HD);
             fs::create_dir_all(output)?;
-            let cards = crop::crop_cards(&mut cropped)?;
+            let cards = vision::crop_cards(&cropped, &WIN_HD);
             for (i, card) in cards.iter().enumerate() {
                 let mut card_file = output.clone();
                 card_file.push(format!("{:02}.png", i));
-                crop::imsave(&card_file, card)?;
+                pipeline::imsave(&card_file, card)?;
             }
         }
         Commands::ReferenceBook { source, output } => {
             fs::create_dir_all(output)?;
-            let images = utils::get_cropped_images(source)?;
-            let names = utils::page_metadata().into_iter().map(|metadata| {
+            let images = pipeline::load_pages(source, &WIN_HD)?;
+            let names = pipeline::reference_page_names().into_iter().map(|name| {
                 let mut output = output.clone();
-                output.push(format!(
-                    "{:02}_{}_{}.png",
-                    metadata.page_id, metadata.tab_color, metadata.tab_index
-                ));
+                output.push(name);
                 output
             });
             for (img, name) in images.iter().zip(names) {
-                crop::imsave(&name, &img)?;
+                pipeline::imsave(&name, img)?;
             }
         }
         Commands::StitchPages { source, output } => {
-            let images = utils::get_cropped_images(source)?;
-            let stitched = stitch::stitch_images(images, 6);
-            crop::imsave(&output, &stitched)?;
+            let images = pipeline::load_pages(source, &WIN_HD)?;
+            let stitched = vision::stitch_images(images, 6);
+            pipeline::imsave(output, &stitched)?;
         }
         Commands::StitchCards {
             source,
             output,
             generate_stats,
         } => {
-            let mut images = utils::get_cropped_images(source)?;
+            let images = pipeline::load_pages(source, &WIN_HD)?;
             if *generate_stats {
-                return Ok(println!("{:?}", utils::get_empty_card_mse(&mut images)));
+                return Ok(println!("{:?}", pipeline::empty_card_mse(&images, &WIN_HD)));
             }
-            let stitched = utils::stitch_cards(&mut images, 4 * 6);
-            crop::imsave(&output, &stitched)?;
+            let stitched = pipeline::stitch_cards(&images, 4 * 6, &WIN_HD);
+            println!("stitched cards");
+            pipeline::imsave(output, &stitched)?;
         }
     }
     Ok(())
