@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "build:wasm": "wasm-pack build ../monsterbook --target web --out-dir ../web/src/lib/pkg --no-default-features --features wasm",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

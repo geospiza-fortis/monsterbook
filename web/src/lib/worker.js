@@ -1,18 +1,30 @@
-// Web worker owning the Session. All wasm (mock, for now) work happens here
-// so the main thread never blocks.
+// Web worker owning the Session. All wasm work happens here so the main
+// thread never blocks.
 //
-// WASM SWAP POINT: replace the import below with the wasm-pack module, e.g.
-//   import init, { Session } from "monsterbook-wasm";
-//   await init();
-import { Session } from "./mock-session.js";
+// The real wasm module (built via `npm run build:wasm`, see web/README.md)
+// lives in ./pkg. Set VITE_MOCK_SESSION=1 to fall back to the mock
+// implementation in mock-session.js for UI development without a wasm build.
 
-const session = new Session();
+const useMock = import.meta.env?.VITE_MOCK_SESSION === "1";
+
+// Init handshake: messages arriving before wasm init resolves await the
+// `ready` promise, so callers never race the module load.
+const ready = (async () => {
+  if (useMock) {
+    const { Session } = await import("./mock-session.js");
+    return new Session();
+  }
+  const wasm = await import("./pkg/monsterbook.js");
+  await wasm.default(); // init()
+  return new wasm.Session();
+})();
 
 // Protocol: request { id, op, ...args } -> response { id, ok, result | error }.
 // Image buffers are passed as transferables in both directions.
 self.onmessage = async (event) => {
   const { id, op } = event.data;
   try {
+    const session = await ready;
     let result;
     let transfer = [];
     switch (op) {
@@ -28,7 +40,7 @@ self.onmessage = async (event) => {
         break;
       }
       case "missing":
-        result = session.missing();
+        result = Array.from(session.missing());
         break;
       case "transcribe":
         result = session.transcribe();

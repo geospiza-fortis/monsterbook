@@ -52,7 +52,18 @@
   }
 
   async function restitch() {
-    const png = await client.stitch(cardsPerRow);
+    let png;
+    try {
+      png = await client.stitch(cardsPerRow);
+    } catch (err) {
+      // The wasm session has nothing to stitch until a page is ingested.
+      if (err?.kind === "NoPageFound") {
+        if (stitchedUrl) URL.revokeObjectURL(stitchedUrl);
+        stitchedUrl = null;
+        return;
+      }
+      throw err;
+    }
     if (stitchedUrl) URL.revokeObjectURL(stitchedUrl);
     stitchedUrl = URL.createObjectURL(new Blob([png], { type: "image/png" }));
   }

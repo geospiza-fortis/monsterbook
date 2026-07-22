@@ -9,3 +9,5 @@ pub mod layout;
 pub mod pipeline;
 pub mod session;
 pub mod vision;
+#[cfg(feature = "wasm")]
+pub mod wasm;
