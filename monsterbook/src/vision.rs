@@ -236,6 +236,9 @@ pub fn replace_background(img: &mut Image, color: Rgba<u8>, layout: &Layout) {
 }
 
 pub fn stitch_images(images: Vec<Image>, width: u32) -> Image {
+    if images.is_empty() {
+        return Image::new(0, 0);
+    }
     let x = images[0].width();
     let y = images[0].height();
     let n = images.len();
