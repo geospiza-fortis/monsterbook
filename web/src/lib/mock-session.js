@@ -2,19 +2,22 @@
 // The real module (built with wasm-pack in a later phase) exposes the same
 // interface; swap the import in worker.js to replace this mock.
 
-export const TOTAL_PAGES = 22;
+export const TOTAL_PAGES = 26;
 
-// Tab colors for the 22 monster book pages, in order.
+// Tab colors for the 26 monster book pages, in order. Matches
+// monsterbook/src/assets/book.json (Phase 5: tab colors inferred from the
+// ribbon signal, validated 15/15 against confirmed old->new page mappings;
+// see data/processed/reference_new/REPORT.md).
 export const PAGE_TABS = [
   "red",
   "orange", "orange", "orange",
-  "lightgreen", "lightgreen", "lightgreen", "lightgreen",
-  "green", "green", "green",
+  "lightgreen", "lightgreen", "lightgreen", "lightgreen", "lightgreen",
+  "green", "green", "green", "green",
   "lightblue", "lightblue", "lightblue",
   "blue", "blue",
   "purple", "purple",
   "black", "black",
-  "gold", "gold", "gold",
+  "gold", "gold", "gold", "gold",
 ].slice(0, TOTAL_PAGES);
 
 const MOB_NAMES = [
