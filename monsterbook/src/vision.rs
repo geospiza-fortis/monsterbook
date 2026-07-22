@@ -116,6 +116,19 @@ pub fn crop_cards(img: &Image, layout: &Layout) -> Vec<Image> {
     cards
 }
 
+/// Crop the count tag (the "x<n>" badge in the lower left) from a card.
+pub fn crop_tag(card: &Image, layout: &Layout) -> Image {
+    let mut cloned = card.clone();
+    imageops::crop(
+        &mut cloned,
+        layout.tag_x,
+        layout.tag_y,
+        layout.tag_width,
+        layout.tag_height,
+    )
+    .to_image()
+}
+
 pub fn mse(img: &Image, reference: &Image) -> u32 {
     let gray_img = into_grayscale_array(img);
     let gray_ref = into_grayscale_array(reference);
@@ -176,6 +189,23 @@ mod tests {
         // 5 images, 2 per row -> 3 rows
         assert_eq!(stitched.width(), 20);
         assert_eq!(stitched.height(), 60);
+    }
+
+    #[test]
+    fn test_crop_tag_geometry() {
+        use crate::layout::WIN_HD;
+        // a full-size card is 33x45; the tag is the 6x9 rect at (5, 31)
+        let mut card = RgbaImage::new(33, 45);
+        for y in 31..40 {
+            for x in 5..11 {
+                card.put_pixel(x, y, Rgba([255, 255, 255, 255]));
+            }
+        }
+        let tag = crop_tag(&card, &WIN_HD);
+        assert_eq!(tag.width(), 6);
+        assert_eq!(tag.height(), 9);
+        // every pixel of the crop comes from the marked region
+        assert!(tag.pixels().all(|p| *p == Rgba([255, 255, 255, 255])));
     }
 
     #[test]

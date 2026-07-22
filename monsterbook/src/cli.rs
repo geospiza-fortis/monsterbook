@@ -57,6 +57,14 @@ enum Commands {
         #[clap(long = "generate-stats", parse(from_flag))]
         generate_stats: bool,
     },
+    /// Transcribe screenshots into a JSON summary of entries and counts
+    #[clap(arg_required_else_help = true)]
+    Transcribe {
+        #[clap(required = true, parse(from_os_str))]
+        source: PathBuf,
+        #[clap(required = true, parse(from_os_str))]
+        output: PathBuf,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -113,6 +121,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let stitched = pipeline::stitch_cards(&images, 4 * 6, &WIN_HD);
             println!("stitched cards");
             pipeline::imsave(output, &stitched)?;
+        }
+        Commands::Transcribe { source, output } => {
+            let images = pipeline::load_pages(source, &WIN_HD)?;
+            let entries = pipeline::transcribe(&images, &monsterbook::assets::BOOK, &WIN_HD);
+            let doc = serde_json::json!({ "data": entries });
+            fs::write(output, serde_json::to_string_pretty(&doc)?)?;
         }
     }
     Ok(())

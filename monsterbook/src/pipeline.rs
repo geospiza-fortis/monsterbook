@@ -3,8 +3,10 @@
 use crate::assets;
 use crate::book::get_color;
 use crate::layout::Layout;
+use crate::book::Book;
 use crate::vision::{self, Image};
 use image::ImageError;
+use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -106,6 +108,72 @@ pub fn empty_card_mse(pages: &[Image], layout: &Layout) -> Vec<u32> {
         .collect()
 }
 
+/// A transcribed monster book entry.
+#[derive(Serialize, Debug)]
+pub struct Entry {
+    pub uid: usize,
+    pub name: String,
+    pub count: u32,
+}
+
+/// Index of the closest reference image by minimum MSE, mirroring
+/// python/utils.py `match`.
+fn match_min_mse(img: &Image, refs: &[Image]) -> usize {
+    refs.iter()
+        .enumerate()
+        .min_by_key(|(_, r)| vision::mse(img, r))
+        .map(|(i, _)| i)
+        .unwrap()
+}
+
+/// The entry name for a uid, or a placeholder for uids past the known
+/// entries (the final gold page has no known entry names).
+fn entry_name(book: &Book, offsets: &[usize], uid: usize) -> String {
+    for (page_id, page) in book.pages.iter().enumerate() {
+        if uid >= offsets[page_id] && uid < offsets[page_id + 1] {
+            if let Some(name) = page.entries.get(uid - offsets[page_id]) {
+                return name.clone();
+            }
+        }
+    }
+    format!("unknown-{}", uid)
+}
+
+/// Transcribe cropped pages into entries, mirroring python/cli.py
+/// `transcribe`: each page is matched to the embedded reference set by
+/// minimum grayscale MSE, empty cards are dropped, and each remaining card's
+/// count is read from its tag against the seed digits (or 0 if the card is
+/// registered but unseen).
+pub fn transcribe(pages: &[Image], book: &Book, layout: &Layout) -> Vec<Entry> {
+    let refs = &assets::REFERENCE_PAGES;
+    let seeds = &assets::SEED_TAGS;
+    let empty = &assets::EMPTY_CARD;
+    let offsets = book.offsets();
+
+    let mut data = Vec::new();
+    for page in pages {
+        let index = match_min_mse(page, refs);
+        let cards: Vec<Image> = vision::crop_cards(page, layout)
+            .into_iter()
+            .filter(|card| vision::mse(card, empty) > layout.empty_mse_threshold)
+            .collect();
+        for (i, card) in cards.iter().enumerate() {
+            let uid = offsets[index] + i;
+            let mut count = 0;
+            if vision::mse(card, empty) > layout.unseen_mse_threshold {
+                let tag = vision::crop_tag(card, layout);
+                count = match_min_mse(&tag, seeds) as u32 + 1;
+            }
+            data.push(Entry {
+                uid,
+                name: entry_name(book, &offsets, uid),
+                count,
+            });
+        }
+    }
+    data
+}
+
 /// Filenames for the reference-book command, one per page in book order.
 pub fn reference_page_names() -> Vec<String> {
     assets::BOOK
@@ -132,6 +200,23 @@ mod tests {
         assert_eq!(cards[25].index, 0);
         assert_eq!(cards[0].image.width(), 33);
         assert_eq!(cards[0].image.height(), 45);
+    }
+
+    #[test]
+    fn test_transcribe_reference_pages() {
+        // transcribing the reference book against itself: every page matches
+        // its own index, and a mostly-unregistered book yields few entries
+        let pages: Vec<Image> = assets::REFERENCE_PAGES.iter().cloned().collect();
+        let entries = transcribe(&pages, &assets::BOOK, &WIN_HD);
+        assert!(entries.len() <= 418);
+        let offsets = assets::BOOK.offsets();
+        for entry in &entries {
+            assert!(entry.uid < *offsets.last().unwrap());
+            assert!(!entry.name.is_empty());
+            assert!(entry.count <= 5);
+        }
+        // the first page of the reference book has a seen snail
+        assert!(entries.iter().any(|e| e.name == "Snail"));
     }
 
     #[test]
