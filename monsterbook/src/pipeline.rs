@@ -83,21 +83,40 @@ pub fn extract_cards(pages: &[Image], layout: &Layout) -> Vec<Card> {
         .collect()
 }
 
-/// Stitch the non-empty cards into a single image, replacing each card's
-/// background with its tab color.
-pub fn stitch_cards(pages: &[Image], per_row: u32, layout: &Layout) -> Image {
+/// Stitch the non-empty cards of (page_id, page) pairs into a single image,
+/// replacing each card's background with the page's tab color. Returns None
+/// when there are no non-empty cards to stitch.
+pub fn stitch_page_cards<'a, I>(pages: I, per_row: u32, layout: &Layout) -> Option<Image>
+where
+    I: IntoIterator<Item = (usize, &'a Image)>,
+{
     let book = &assets::BOOK;
-    let cards = extract_cards(pages, layout)
+    let cards: Vec<Image> = pages
         .into_iter()
-        .filter(|card| card.empty_mse() > layout.empty_mse_threshold)
-        .map(|card| {
-            let color = get_color(&book.pages[card.page_id].tab_color);
-            let mut img = card.image;
-            vision::replace_background(&mut img, color, layout);
-            img
+        .flat_map(|(page_id, page)| {
+            vision::crop_cards(page, layout)
+                .into_iter()
+                .map(move |image| (page_id, image))
+        })
+        .filter(|(_, image)| card_mse(image) > layout.empty_mse_threshold)
+        .map(|(page_id, mut image)| {
+            let color = get_color(&book.pages[page_id].tab_color);
+            vision::replace_background(&mut image, color, layout);
+            image
         })
         .collect();
-    vision::stitch_images(cards, per_row)
+    if cards.is_empty() {
+        return None;
+    }
+    Some(vision::stitch_images(cards, per_row))
+}
+
+/// Stitch the non-empty cards into a single image, replacing each card's
+/// background with its tab color. Pages are assumed to be in book order
+/// starting at page 0.
+pub fn stitch_cards(pages: &[Image], per_row: u32, layout: &Layout) -> Image {
+    stitch_page_cards(pages.iter().enumerate(), per_row, layout)
+        .unwrap_or_else(|| Image::new(0, 0))
 }
 
 /// The empty-card MSE of every card across all pages, in page/grid order.
@@ -116,13 +135,13 @@ pub struct Entry {
     pub count: u32,
 }
 
-/// Index of the closest reference image by minimum MSE, mirroring
-/// python/utils.py `match`.
-fn match_min_mse(img: &Image, refs: &[Image]) -> usize {
+/// Index of the closest reference image by minimum MSE (and that MSE),
+/// mirroring python/utils.py `match`.
+pub fn match_min_mse(img: &Image, refs: &[Image]) -> (usize, u32) {
     refs.iter()
         .enumerate()
-        .min_by_key(|(_, r)| vision::mse(img, r))
-        .map(|(i, _)| i)
+        .map(|(i, r)| (i, vision::mse(img, r)))
+        .min_by_key(|(_, m)| *m)
         .unwrap()
 }
 
@@ -146,30 +165,36 @@ fn entry_name(book: &Book, offsets: &[usize], uid: usize) -> String {
 /// registered but unseen).
 pub fn transcribe(pages: &[Image], book: &Book, layout: &Layout) -> Vec<Entry> {
     let refs = &assets::REFERENCE_PAGES;
+    let mut data = Vec::new();
+    for page in pages {
+        let (index, _) = match_min_mse(page, refs);
+        data.extend(transcribe_page(page, index, book, layout));
+    }
+    data
+}
+
+/// Transcribe a single cropped page whose page_id is already known.
+pub fn transcribe_page(page: &Image, page_id: usize, book: &Book, layout: &Layout) -> Vec<Entry> {
     let seeds = &assets::SEED_TAGS;
     let empty = &assets::EMPTY_CARD;
     let offsets = book.offsets();
-
+    let cards: Vec<Image> = vision::crop_cards(page, layout)
+        .into_iter()
+        .filter(|card| vision::mse(card, empty) > layout.empty_mse_threshold)
+        .collect();
     let mut data = Vec::new();
-    for page in pages {
-        let index = match_min_mse(page, refs);
-        let cards: Vec<Image> = vision::crop_cards(page, layout)
-            .into_iter()
-            .filter(|card| vision::mse(card, empty) > layout.empty_mse_threshold)
-            .collect();
-        for (i, card) in cards.iter().enumerate() {
-            let uid = offsets[index] + i;
-            let mut count = 0;
-            if vision::mse(card, empty) > layout.unseen_mse_threshold {
-                let tag = vision::crop_tag(card, layout);
-                count = match_min_mse(&tag, seeds) as u32 + 1;
-            }
-            data.push(Entry {
-                uid,
-                name: entry_name(book, &offsets, uid),
-                count,
-            });
+    for (i, card) in cards.iter().enumerate() {
+        let uid = offsets[page_id] + i;
+        let mut count = 0;
+        if vision::mse(card, empty) > layout.unseen_mse_threshold {
+            let tag = vision::crop_tag(card, layout);
+            count = match_min_mse(&tag, seeds).0 as u32 + 1;
         }
+        data.push(Entry {
+            uid,
+            name: entry_name(book, &offsets, uid),
+            count,
+        });
     }
     data
 }

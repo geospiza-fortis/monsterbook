@@ -37,6 +37,19 @@ pub static SEED_TAGS: Lazy<Vec<Image>> = Lazy::new(|| {
     .collect()
 });
 
+/// The embedded reference pages resized to the WIN_HD page size. The
+/// reference screenshots were captured on the mac client at exactly twice
+/// the windows client resolution (see python/utils.py `crop_mac`), so a
+/// simple downscale lines them up with pages cropped via the WIN_HD layout.
+pub static REFERENCE_PAGES_WIN: Lazy<Vec<Image>> = Lazy::new(|| {
+    use crate::layout::WIN_HD;
+    use image::imageops::{self, FilterType};
+    REFERENCE_PAGES
+        .iter()
+        .map(|img| imageops::resize(img, WIN_HD.page_width, WIN_HD.page_height, FilterType::Triangle))
+        .collect()
+});
+
 /// Cropped reference book pages in page order, used to identify which page a
 /// screenshot belongs to. Only 22 pages exist: the final gold page has no
 /// reference screenshot.

@@ -28,6 +28,14 @@ pub struct Layout {
     /// unseen and its count is 0. From python/cli.py `transcribe`
     /// UNSEEN_THRESHOLD.
     pub unseen_mse_threshold: u32,
+    /// Grayscale MSE against the closest embedded reference page above which
+    /// a cropped page is rejected as "not a monster book page". Calibrated
+    /// empirically: a reference page matched against itself is 0 and the
+    /// minimum MSE between two *different* reference pages is 29, while the
+    /// closest non-book image tried (a solid gray 192 fill) scores 997 and
+    /// random noise scores ~12000. 300 leaves an order-of-magnitude margin on
+    /// both sides.
+    pub page_mse_threshold: u32,
 }
 
 pub const WIN_HD: Layout = Layout {
@@ -45,6 +53,7 @@ pub const WIN_HD: Layout = Layout {
     tag_width: 6,
     tag_height: 9,
     unseen_mse_threshold: 5000,
+    page_mse_threshold: 300,
 };
 
 #[cfg(test)]

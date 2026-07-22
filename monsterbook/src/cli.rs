@@ -57,6 +57,15 @@ enum Commands {
         #[clap(long = "generate-stats", parse(from_flag))]
         generate_stats: bool,
     },
+    /// Transcribe screenshots via content-addressed session ingestion:
+    /// screenshots may be in any order and pages are identified by content
+    #[clap(arg_required_else_help = true)]
+    SessionTranscribe {
+        #[clap(required = true, parse(from_os_str))]
+        source: PathBuf,
+        #[clap(required = true, parse(from_os_str))]
+        output: PathBuf,
+    },
     /// Transcribe screenshots into a JSON summary of entries and counts
     #[clap(arg_required_else_help = true)]
     Transcribe {
@@ -121,6 +130,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let stitched = pipeline::stitch_cards(&images, 4 * 6, &WIN_HD);
             println!("stitched cards");
             pipeline::imsave(output, &stitched)?;
+        }
+        Commands::SessionTranscribe { source, output } => {
+            let mut session = monsterbook::session::Session::new();
+            let mut paths: Vec<PathBuf> = fs::read_dir(source)?
+                .map(|entry| entry.map(|e| e.path()))
+                .collect::<Result<_, _>>()?;
+            paths.sort();
+            for path in paths {
+                let bytes = fs::read(&path)?;
+                match session.add_screenshot(&bytes) {
+                    Ok(page_id) => println!("{}: page {}", path.display(), page_id),
+                    Err(err) => eprintln!("{}: skipped ({})", path.display(), err),
+                }
+            }
+            let missing = session.missing();
+            if !missing.is_empty() {
+                eprintln!("missing pages: {:?}", missing);
+            }
+            let entries = session.transcribe();
+            let doc = serde_json::json!({ "data": entries });
+            fs::write(output, serde_json::to_string_pretty(&doc)?)?;
         }
         Commands::Transcribe { source, output } => {
             let images = pipeline::load_pages(source, &WIN_HD)?;

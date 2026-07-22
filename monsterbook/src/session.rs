@@ -1,0 +1,253 @@
+//! Content-addressed screenshot ingestion: screenshots are identified by
+//! which book page they contain rather than by filename order, so they can be
+//! added in any order, from any source (files, drag-and-drop, clipboard).
+use crate::assets;
+use crate::layout::{Layout, WIN_HD};
+use crate::pipeline::{self, Entry};
+use crate::vision::{self, Image};
+use std::collections::BTreeMap;
+use std::fmt;
+use std::io::Cursor;
+
+/// Why a screenshot could not be ingested.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IngestError {
+    /// The bytes could not be decoded as an image.
+    DecodeError,
+    /// No monster book page was found in the image (the best reference-page
+    /// match exceeded `Layout::page_mse_threshold`).
+    NoPageFound,
+}
+
+impl fmt::Display for IngestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IngestError::DecodeError => write!(f, "could not decode image"),
+            IngestError::NoPageFound => write!(f, "no monster book page found in image"),
+        }
+    }
+}
+
+impl std::error::Error for IngestError {}
+
+/// A collection of cropped book pages keyed by page_id, built up
+/// incrementally from screenshots.
+pub struct Session {
+    pages: BTreeMap<usize, Image>,
+    layout: &'static Layout,
+}
+
+impl Default for Session {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Session {
+    pub fn new() -> Self {
+        Session {
+            pages: BTreeMap::new(),
+            layout: &WIN_HD,
+        }
+    }
+
+    /// The ingested pages, keyed by page_id.
+    pub fn pages(&self) -> &BTreeMap<usize, Image> {
+        &self.pages
+    }
+
+    /// Decode a screenshot from raw file bytes (format guessed) and ingest it.
+    /// Returns the identified page_id.
+    pub fn add_screenshot(&mut self, bytes: &[u8]) -> Result<usize, IngestError> {
+        let img = image::io::Reader::new(Cursor::new(bytes))
+            .with_guessed_format()
+            .map_err(|_| IngestError::DecodeError)?
+            .decode()
+            .map_err(|_| IngestError::DecodeError)?
+            .into_rgba8();
+        self.ingest(img)
+    }
+
+    /// Ingest a raw RGBA bitmap (e.g. from the clipboard). Returns the
+    /// identified page_id.
+    pub fn add_bitmap(
+        &mut self,
+        width: u32,
+        height: u32,
+        rgba: Vec<u8>,
+    ) -> Result<usize, IngestError> {
+        let img = Image::from_raw(width, height, rgba).ok_or(IngestError::DecodeError)?;
+        self.ingest(img)
+    }
+
+    /// Locate and crop the book page, identify which page it is by minimum
+    /// grayscale MSE against the embedded reference pages, and insert it
+    /// (replacing any previous screenshot of the same page).
+    fn ingest(&mut self, mut img: Image) -> Result<usize, IngestError> {
+        if img.width() < self.layout.page_width || img.height() < self.layout.page_height {
+            return Err(IngestError::NoPageFound);
+        }
+        let (x, y) = vision::match_reference_page(&img, &assets::REFERENCE_PAGE);
+        let page = vision::crop_page(&mut img, x, y, self.layout);
+        if page.width() != self.layout.page_width || page.height() != self.layout.page_height {
+            return Err(IngestError::NoPageFound);
+        }
+        let (page_id, best_mse) = pipeline::match_min_mse(&page, &assets::REFERENCE_PAGES_WIN);
+        if best_mse > self.layout.page_mse_threshold {
+            return Err(IngestError::NoPageFound);
+        }
+        self.pages.insert(page_id, page);
+        Ok(page_id)
+    }
+
+    /// Merge another session's pages into this one; the other session's
+    /// pages win on conflict (they are newer).
+    pub fn merge(&mut self, other: Session) {
+        self.pages.extend(other.pages);
+    }
+
+    /// Page ids not yet ingested. Page 22 (gold_2) is excluded: there is no
+    /// embedded reference screenshot for it, so it can never be identified by
+    /// ingestion and would otherwise be permanently "missing". Revisit in
+    /// Phase 5.
+    pub fn missing(&self) -> Vec<usize> {
+        (0..assets::REFERENCE_PAGES.len())
+            .filter(|id| !self.pages.contains_key(id))
+            .collect()
+    }
+
+    /// Transcribe only the ingested pages, using each page's identified
+    /// page_id directly (no re-matching).
+    pub fn transcribe(&self) -> Vec<Entry> {
+        self.pages
+            .iter()
+            .flat_map(|(&page_id, page)| {
+                pipeline::transcribe_page(page, page_id, &assets::BOOK, self.layout)
+            })
+            .collect()
+    }
+
+    /// Stitch the non-empty cards of the ingested pages, in page order. None
+    /// when the session is empty (or has no non-empty cards).
+    pub fn stitch(&self, cards_per_row: u32) -> Option<Image> {
+        pipeline::stitch_page_cards(
+            self.pages.iter().map(|(&id, page)| (id, page)),
+            cards_per_row,
+            self.layout,
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{DynamicImage, ImageOutputFormat, Rgba, RgbaImage};
+
+    /// Build a synthetic screenshot: the win-scale reference page embedded
+    /// at an offset in a larger canvas, re-encoded as PNG bytes.
+    fn encoded_reference(page_id: usize) -> Vec<u8> {
+        let page = &assets::REFERENCE_PAGES_WIN[page_id];
+        let mut canvas = RgbaImage::from_pixel(400, 300, Rgba([20, 20, 20, 255]));
+        image::imageops::overlay(&mut canvas, page, 40, 30);
+        let mut bytes = Cursor::new(Vec::new());
+        DynamicImage::ImageRgba8(canvas)
+            .write_to(&mut bytes, ImageOutputFormat::Png)
+            .unwrap();
+        bytes.into_inner()
+    }
+
+    #[test]
+    fn test_add_screenshot_identifies_page() {
+        let mut session = Session::new();
+        let page_id = session.add_screenshot(&encoded_reference(3)).unwrap();
+        assert_eq!(page_id, 3);
+        assert_eq!(session.pages().len(), 1);
+    }
+
+    #[test]
+    fn test_add_screenshot_bad_bytes() {
+        let mut session = Session::new();
+        assert_eq!(
+            session.add_screenshot(b"not an image"),
+            Err(IngestError::DecodeError)
+        );
+    }
+
+    #[test]
+    fn test_solid_image_rejected() {
+        let mut session = Session::new();
+        let solid = RgbaImage::from_pixel(400, 300, Rgba([192, 192, 192, 255]));
+        let result = session.add_bitmap(400, 300, solid.into_raw());
+        assert_eq!(result, Err(IngestError::NoPageFound));
+        assert!(session.pages().is_empty());
+    }
+
+    #[test]
+    fn test_add_bitmap_identifies_page() {
+        let mut session = Session::new();
+        let img = assets::REFERENCE_PAGES_WIN[0].clone();
+        let (w, h) = (img.width(), img.height());
+        let page_id = session.add_bitmap(w, h, img.into_raw()).unwrap();
+        assert_eq!(page_id, 0);
+    }
+
+    #[test]
+    fn test_duplicate_add_replaces() {
+        let mut session = Session::new();
+        session.add_screenshot(&encoded_reference(5)).unwrap();
+        session.add_screenshot(&encoded_reference(5)).unwrap();
+        assert_eq!(session.pages().len(), 1);
+    }
+
+    #[test]
+    fn test_missing_shrinks_and_excludes_gold_2() {
+        let mut session = Session::new();
+        let missing = session.missing();
+        // 22 identifiable pages; page 22 (gold_2) is excluded
+        assert_eq!(missing.len(), 22);
+        assert!(!missing.contains(&22));
+        session.add_screenshot(&encoded_reference(0)).unwrap();
+        let missing = session.missing();
+        assert_eq!(missing.len(), 21);
+        assert!(!missing.contains(&0));
+    }
+
+    #[test]
+    fn test_partial_transcribe() {
+        let mut session = Session::new();
+        session.add_screenshot(&encoded_reference(0)).unwrap();
+        let entries = session.transcribe();
+        let offsets = assets::BOOK.offsets();
+        // all entries come from page 0 (uids below the page 1 offset)
+        assert!(!entries.is_empty());
+        assert!(entries.iter().all(|e| e.uid < offsets[1]));
+        assert!(entries.iter().any(|e| e.name == "Snail"));
+    }
+
+    #[test]
+    fn test_page_mse_threshold_margins() {
+        // the calibration behind Layout::page_mse_threshold: a genuine page
+        // matches its reference near 0, while non-book images stay well
+        // above the threshold.
+        let refs = &assets::REFERENCE_PAGES_WIN;
+        let threshold = WIN_HD.page_mse_threshold;
+        for r in refs.iter() {
+            let (_, best) = pipeline::match_min_mse(r, refs);
+            assert!(best < threshold / 2);
+        }
+        for v in [0u8, 64, 128, 192, 255] {
+            let solid = RgbaImage::from_pixel(165, 225, Rgba([v, v, v, 255]));
+            let (_, best) = pipeline::match_min_mse(&solid, refs);
+            assert!(best > threshold * 2, "solid {} mse {}", v, best);
+        }
+    }
+
+    #[test]
+    fn test_stitch() {
+        let mut session = Session::new();
+        assert!(session.stitch(10).is_none());
+        session.add_screenshot(&encoded_reference(0)).unwrap();
+        let stitched = session.stitch(10).unwrap();
+        assert!(stitched.width() > 0 && stitched.height() > 0);
+    }
+}
