@@ -14,8 +14,14 @@ fn decode_png(bytes: &[u8]) -> Image {
         .into_rgba8()
 }
 
+/// The empty-card template: the per-pixel mean of all 650 card slots across
+/// the 26 empty-book pages in `data/processed/empty_new/` (see its
+/// REPORT.md), at native WIN_HD card scale (33x45). Replaces the original
+/// `empty_card.png` (still on disk, no longer compiled in), against which
+/// empty cards from the 800x600-client captures scored up to 2924 — well
+/// past the old 500 threshold.
 pub static EMPTY_CARD: Lazy<Image> =
-    Lazy::new(|| decode_png(include_bytes!("assets/empty_card.png")));
+    Lazy::new(|| decode_png(include_bytes!("assets/empty_card_v2.png")));
 
 pub static REFERENCE_PAGE: Lazy<Image> =
     Lazy::new(|| decode_png(include_bytes!("assets/reference_page_win.png")));

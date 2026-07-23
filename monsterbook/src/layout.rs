@@ -12,8 +12,13 @@ pub struct Layout {
     pub content_y: u32,
     pub content_width: u32,
     pub content_height: u32,
-    /// MSE against the empty card below which a card is considered empty. To
-    /// determine the threshold, generate stats and look for an obvious cutoff.
+    /// MSE against the empty card below which a card is considered empty.
+    /// Calibrated on the 650 known-empty slots of the 26 empty-book pages
+    /// (`data/processed/empty_new/`) against the mean empty-card template:
+    /// every empty slot scores at most 1010, while the closest non-empty
+    /// card in the collected reference set
+    /// (`data/processed/reference_new/`) scores 4690. 2000 leaves roughly
+    /// 2x margin on both sides.
     pub empty_mse_threshold: u32,
     /// The count tag rect (the small "x<n>" badge in the card's lower left),
     /// relative to a card. From python/utils.py `crop_tag_win`: numpy
@@ -25,8 +30,13 @@ pub struct Layout {
     pub tag_height: u32,
     /// MSE against the empty card above which a card is considered "seen"
     /// (its count tag is legible); at or below, the monster is registered but
-    /// unseen and its count is 0. From python/cli.py `transcribe`
-    /// UNSEEN_THRESHOLD.
+    /// unseen and its count is 0. The collected reference set contains no
+    /// unseen (silhouette) cards, so this cannot be calibrated directly;
+    /// instead it mirrors the old threshold's relative placement. Against
+    /// the old template the seen cluster started at 7732 and the python-era
+    /// UNSEEN_THRESHOLD of 5000 sat at ~0.65x that; against the new
+    /// template the seen cluster starts at 4690, and 3000 sits at the same
+    /// ~0.65x while staying well above the empty cluster's 1010 maximum.
     pub unseen_mse_threshold: u32,
     /// Grayscale MSE against the closest embedded reference page above which
     /// a cropped page is rejected as "not a monster book page". Calibrated
@@ -67,12 +77,12 @@ pub const WIN_HD: Layout = Layout {
     content_y: 4,
     content_width: 27,
     content_height: 38,
-    empty_mse_threshold: 500,
+    empty_mse_threshold: 2000,
     tag_x: 5,
     tag_y: 31,
     tag_width: 6,
     tag_height: 9,
-    unseen_mse_threshold: 5000,
+    unseen_mse_threshold: 3000,
     page_mse_threshold: 300,
     page_ncc_threshold: 0.3,
 };
@@ -86,7 +96,7 @@ mod tests {
         assert_eq!(WIN_HD.page_width, 165);
         assert_eq!(WIN_HD.page_height, 225);
         assert_eq!(WIN_HD.grid_rows * WIN_HD.grid_cols, 25);
-        assert_eq!(WIN_HD.empty_mse_threshold, 500);
+        assert_eq!(WIN_HD.empty_mse_threshold, 2000);
     }
 
     #[test]
@@ -99,6 +109,6 @@ mod tests {
         // the tag must fit within a 33x45 card
         assert!(WIN_HD.tag_x + WIN_HD.tag_width <= 165 / WIN_HD.grid_cols);
         assert!(WIN_HD.tag_y + WIN_HD.tag_height <= 225 / WIN_HD.grid_rows);
-        assert_eq!(WIN_HD.unseen_mse_threshold, 5000);
+        assert_eq!(WIN_HD.unseen_mse_threshold, 3000);
     }
 }
