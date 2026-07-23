@@ -46,7 +46,10 @@ self.onmessage = async (event) => {
         result = session.transcribe();
         break;
       case "stitch": {
-        const png = await session.stitch(event.data.cardsPerRow);
+        const png = await session.stitch(
+          event.data.cardsPerRow,
+          event.data.includeEmpty,
+        );
         result = png.buffer;
         transfer = [png.buffer];
         break;

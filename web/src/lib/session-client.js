@@ -34,4 +34,5 @@ export const addBitmap = (width, height, buffer) =>
   call({ op: "add_bitmap", width, height, buffer }, [buffer]);
 export const missing = () => call({ op: "missing" });
 export const transcribe = () => call({ op: "transcribe" });
-export const stitch = (cardsPerRow) => call({ op: "stitch", cardsPerRow });
+export const stitch = (cardsPerRow, includeEmpty = false) =>
+  call({ op: "stitch", cardsPerRow, includeEmpty });

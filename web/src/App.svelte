@@ -21,8 +21,11 @@
   let rows = [];
   let sortKey = "uid";
   let sortDir = 1;
-  let cardsPerRow = 5;
+  let cardsPerRow = 20;
+  let includeEmpty = true;
   let stitchedUrl = null;
+  let tablePage = 0;
+  const PAGE_SIZE = 40;
   let dragging = false;
   let busy = 0;
   let fileInput;
@@ -32,6 +35,12 @@
     const va = a[sortKey], vb = b[sortKey];
     return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
   });
+  $: tablePages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
+  $: tablePage = Math.min(tablePage, tablePages - 1);
+  $: pagedRows = sortedRows.slice(
+    tablePage * PAGE_SIZE,
+    (tablePage + 1) * PAGE_SIZE,
+  );
 
   function notify(message) {
     notices = [...notices, { id: noticeId++, message }];
@@ -54,7 +63,7 @@
   async function restitch() {
     let png;
     try {
-      png = await client.stitch(cardsPerRow);
+      png = await client.stitch(cardsPerRow, includeEmpty);
     } catch (err) {
       // The wasm session has nothing to stitch until a page is ingested.
       if (err?.kind === "NoPageFound") {
@@ -71,8 +80,22 @@
   async function ingestBlob(blob, label) {
     busy++;
     try {
-      const buffer = await blob.arrayBuffer();
-      await client.addScreenshot(buffer);
+      // Decode in the browser (handles webp/avif/anything the browser can
+      // render, which the wasm-side image crate cannot), then hand raw RGBA
+      // to the session. Fall back to wasm-side decoding if that fails.
+      try {
+        const bitmap = await createImageBitmap(blob);
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bitmap, 0, 0);
+        const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+        bitmap.close();
+        await client.addBitmap(canvas.width, canvas.height, data.buffer);
+      } catch (decodeErr) {
+        if (decodeErr?.kind) throw decodeErr; // session error, not a decode failure
+        const buffer = await blob.arrayBuffer();
+        await client.addScreenshot(buffer);
+      }
     } catch (err) {
       notify(`${label}: ${err?.kind ?? "error"}${err?.message ? ` (${err.message})` : ""}`);
     } finally {
@@ -128,6 +151,11 @@
 
 <main class:dragging>
   <h1>Monster Book Stitcher</h1>
+  <p>
+    This app transcribes in-game screenshots of the Monster Book in
+    MapleLegends to help plan and track card hunting. All processing occurs
+    on-device and can be run offline.
+  </p>
   <p class="muted">
     Add screenshots of your monster book pages: choose files, drag and drop
     them anywhere on the page, or paste from the clipboard.
@@ -168,6 +196,30 @@
   </div>
 
   {#if rows.length}
+    <h2>Stitched image</h2>
+    <div class="stitch-controls">
+      <label>
+        Cards per row
+        <input
+          type="number"
+          min="1"
+          max="40"
+          bind:value={cardsPerRow}
+          on:change={onCardsPerRowChange}
+        />
+      </label>
+      <label>
+        <input type="checkbox" bind:checked={includeEmpty} on:change={restitch} />
+        Include empty cards
+      </label>
+    </div>
+    {#if stitchedUrl}
+      <p>
+        <a href={stitchedUrl} download="monsterbook.png"><button>Download PNG</button></a>
+      </p>
+      <img class="stitched" src={stitchedUrl} alt="Stitched monster book" />
+    {/if}
+
     <h2>Cards</h2>
     <div class="table-wrap">
       <table>
@@ -181,31 +233,37 @@
           </tr>
         </thead>
         <tbody>
-          {#each sortedRows as row (row.uid)}
+          {#each pagedRows as row (row.uid)}
             <tr><td>{row.uid}</td><td>{row.name}</td><td>{row.count}</td></tr>
           {/each}
         </tbody>
       </table>
     </div>
-
-    <h2>Stitched image</h2>
-    <label>
-      Cards per row
-      <input
-        type="number"
-        min="1"
-        max="20"
-        bind:value={cardsPerRow}
-        on:change={onCardsPerRowChange}
-      />
-    </label>
-    {#if stitchedUrl}
-      <p>
-        <a href={stitchedUrl} download="monsterbook.png"><button>Download PNG</button></a>
-      </p>
-      <img class="stitched" src={stitchedUrl} alt="Stitched monster book" />
-    {/if}
+    <div class="pager">
+      <button disabled={tablePage === 0} on:click={() => tablePage--}>‹ Prev</button>
+      <span class="muted">
+        {tablePage + 1} / {tablePages} ({sortedRows.length} cards)
+      </span>
+      <button disabled={tablePage >= tablePages - 1} on:click={() => tablePage++}>Next ›</button>
+    </div>
   {/if}
+
+  <footer class="muted">
+    <p>
+      The source code can be found on GitHub at
+      <a href="https://github.com/geospiza-fortis/monsterbook"
+        >geospiza-fortis/monsterbook</a
+      >. The monster and map information is taken from the
+      <a
+        href="https://forum.maplelegends.com/index.php?threads/monster-book-efficient-farming-guide.23984"
+        >Monster Book Efficient Farming Guide</a
+      >
+      by Precel and Bambo (<a
+        href="https://docs.google.com/spreadsheets/d/1ohipSCqwiyyOdqNTWrTzDNGUtYJOojfk9qbVHSl70l0/edit#gid=1847158424"
+        >link</a
+      >).
+    </p>
+  </footer>
 </main>
 
 <style>
@@ -309,6 +367,32 @@
     color: var(--fg);
     border: 1px solid var(--border);
     border-radius: 6px;
+  }
+  .pager {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .pager button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .stitch-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  footer a {
+    color: var(--accent);
   }
   .stitched {
     max-width: 100%;

@@ -59,11 +59,12 @@ impl WasmSession {
             .map_err(|e| js_error("InternalError", &e.to_string()))
     }
 
-    /// Stitch ingested pages' non-empty cards into a PNG (encoded bytes).
-    pub fn stitch(&self, cards_per_row: u32) -> Result<Vec<u8>, JsValue> {
+    /// Stitch ingested pages' cards into a PNG (encoded bytes). Empty
+    /// (un-caught) card slots are skipped unless `include_empty` is set.
+    pub fn stitch(&self, cards_per_row: u32, include_empty: bool) -> Result<Vec<u8>, JsValue> {
         let img = self
             .inner
-            .stitch(cards_per_row)
+            .stitch(cards_per_row, include_empty)
             .ok_or_else(|| js_error("NoPageFound", "no cards to stitch"))?;
         let mut bytes = Cursor::new(Vec::new());
         DynamicImage::ImageRgba8(img)

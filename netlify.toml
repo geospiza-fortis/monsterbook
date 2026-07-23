@@ -1,0 +1,15 @@
+# Deploy the Vite/wasm web app (web/), not the legacy rollup app at the
+# repo root. The build image has no Rust toolchain, so bootstrap rustup,
+# the wasm32 target, and wasm-pack before building.
+[build]
+  base = "web"
+  publish = "dist"
+  command = "./netlify-build.sh"
+
+[build.environment]
+  # Override the site's stale NODE_VERSION=12 dashboard setting; vite 5
+  # needs node >= 18.
+  NODE_VERSION = "22"
+  # Cache cargo artifacts between builds.
+  CARGO_HOME = "/opt/build/cache/cargo"
+  RUSTUP_HOME = "/opt/build/cache/rustup"

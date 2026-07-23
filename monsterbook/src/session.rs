@@ -127,12 +127,14 @@ impl Session {
             .collect()
     }
 
-    /// Stitch the non-empty cards of the ingested pages, in page order. None
-    /// when the session is empty (or has no non-empty cards).
-    pub fn stitch(&self, cards_per_row: u32) -> Option<Image> {
+    /// Stitch the cards of the ingested pages, in page order. Empty
+    /// (un-caught) card slots are skipped unless `include_empty` is set.
+    /// None when the session is empty (or has no cards to stitch).
+    pub fn stitch(&self, cards_per_row: u32, include_empty: bool) -> Option<Image> {
         pipeline::stitch_page_cards(
             self.pages.iter().map(|(&id, page)| (id, page)),
             cards_per_row,
+            include_empty,
             self.layout,
         )
     }
@@ -276,10 +278,12 @@ mod tests {
     #[test]
     fn test_stitch() {
         let mut session = Session::new();
-        assert!(session.stitch(10).is_none());
+        assert!(session.stitch(10, false).is_none());
         // an ingested empty reference page has no non-empty cards either
         session.add_screenshot(&encoded_reference(0)).unwrap();
-        assert!(session.stitch(10).is_none());
+        assert!(session.stitch(10, false).is_none());
+        // ...unless empty slots are explicitly included
+        assert!(session.stitch(10, true).is_some());
         // paint one card slot with a bright square so it stitches
         let mut page = assets::REFERENCE_PAGES_WIN[0].clone();
         for y in 0..45 {
@@ -288,7 +292,7 @@ mod tests {
             }
         }
         session.pages.insert(0, page);
-        let stitched = session.stitch(10).unwrap();
+        let stitched = session.stitch(10, false).unwrap();
         assert!(stitched.width() > 0 && stitched.height() > 0);
     }
 }

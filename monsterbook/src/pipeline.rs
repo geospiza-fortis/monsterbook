@@ -88,10 +88,16 @@ pub fn extract_cards(pages: &[Image], layout: &Layout) -> Vec<Card> {
         .collect()
 }
 
-/// Stitch the non-empty cards of (page_id, page) pairs into a single image,
-/// replacing each card's background with the page's tab color. Returns None
-/// when there are no non-empty cards to stitch.
-pub fn stitch_page_cards<'a, I>(pages: I, per_row: u32, layout: &Layout) -> Option<Image>
+/// Stitch the cards of (page_id, page) pairs into a single image, replacing
+/// each card's background with the page's tab color. Empty (un-caught) card
+/// slots are skipped unless `include_empty` is set. Returns None when there
+/// are no cards to stitch.
+pub fn stitch_page_cards<'a, I>(
+    pages: I,
+    per_row: u32,
+    include_empty: bool,
+    layout: &Layout,
+) -> Option<Image>
 where
     I: IntoIterator<Item = (usize, &'a Image)>,
 {
@@ -99,11 +105,14 @@ where
     let cards: Vec<Image> = pages
         .into_iter()
         .flat_map(|(page_id, page)| {
+            // The grid has more slots than some pages have cards; slots past
+            // the page's card_count are not real cards and never stitch.
             vision::crop_cards(page, layout)
                 .into_iter()
+                .take(book.pages[page_id].card_count)
                 .map(move |image| (page_id, image))
         })
-        .filter(|(_, image)| card_mse(image) > layout.empty_mse_threshold)
+        .filter(|(_, image)| include_empty || card_mse(image) > layout.empty_mse_threshold)
         .map(|(page_id, mut image)| {
             let color = get_color(&book.pages[page_id].tab_color);
             vision::replace_background(&mut image, color, layout);
@@ -120,7 +129,7 @@ where
 /// background with its tab color. Pages are assumed to be in book order
 /// starting at page 0.
 pub fn stitch_cards(pages: &[Image], per_row: u32, layout: &Layout) -> Image {
-    stitch_page_cards(pages.iter().enumerate(), per_row, layout)
+    stitch_page_cards(pages.iter().enumerate(), per_row, false, layout)
         .unwrap_or_else(|| Image::new(0, 0))
 }
 
