@@ -40,11 +40,11 @@ pub struct Layout {
     pub unseen_mse_threshold: u32,
     /// Grayscale MSE against the closest embedded reference page above which
     /// a cropped page is rejected as "not a monster book page". Calibrated
-    /// empirically: a reference page matched against itself is 0 and the
-    /// minimum MSE between two *different* reference pages is 29, while the
-    /// closest non-book image tried (a solid gray 192 fill) scores 997 and
-    /// random noise scores ~12000. 300 leaves an order-of-magnitude margin on
-    /// both sides.
+    /// empirically against the empty-book reference set: a reference page
+    /// matched against itself is 0, while the closest non-book image tried
+    /// (a solid white fill, close to the empty pages' beige) scores 920 and
+    /// random noise scores ~11900. 300 keeps 3x margin below the closest
+    /// non-book input.
     ///
     /// Deprecated by `page_ncc_threshold` for page *identification*, but
     /// still kept (and still tested) as it remains a reasonable
@@ -54,14 +54,14 @@ pub struct Layout {
     pub page_mse_threshold: u32,
     /// Zero-mean normalized cross-correlation (in [-1, 1]) against the
     /// closest embedded reference page below which a cropped page is
-    /// rejected as "not a monster book page". Calibrated on 26 real
-    /// collected-book screenshots (see
-    /// `data/processed/reference_new/REPORT.md`): every real page scores at
-    /// least ~0.50 against its best (possibly wrong, since the reference set
-    /// predates several new pages) reference match, while a solid fill or
-    /// random noise image scores ~0.0 against every reference (NCC is
-    /// undefined/zero for a constant image). 0.3 leaves comfortable margin
-    /// on both sides while still being decisive against non-book input.
+    /// rejected as "not a monster book page". Calibrated against the
+    /// empty-book reference set on the 26 fully collected-book pages
+    /// (`data/processed/reference_new/`, the worst-case card-content
+    /// mismatch): every real page identifies correctly with NCC of at least
+    /// 0.745, while a solid fill or random noise image scores ~0.0 against
+    /// every reference (NCC is undefined/zero for a constant image). 0.3
+    /// leaves comfortable margin on both sides while still being decisive
+    /// against non-book input.
     pub page_ncc_threshold: f64,
 }
 

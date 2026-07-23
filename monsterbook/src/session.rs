@@ -220,14 +220,11 @@ mod tests {
 
     #[test]
     fn test_partial_transcribe() {
+        // the reference pages are crops of an empty book, so an ingested
+        // reference page transcribes to no entries (nothing registered)
         let mut session = Session::new();
         session.add_screenshot(&encoded_reference(0)).unwrap();
-        let entries = session.transcribe();
-        let offsets = assets::BOOK.offsets();
-        // all entries come from page 0 (uids below the page 1 offset)
-        assert!(!entries.is_empty());
-        assert!(entries.iter().all(|e| e.uid < offsets[1]));
-        assert!(entries.iter().any(|e| e.name == "Snail"));
+        assert!(session.transcribe().is_empty());
     }
 
     #[test]
@@ -280,7 +277,17 @@ mod tests {
     fn test_stitch() {
         let mut session = Session::new();
         assert!(session.stitch(10).is_none());
+        // an ingested empty reference page has no non-empty cards either
         session.add_screenshot(&encoded_reference(0)).unwrap();
+        assert!(session.stitch(10).is_none());
+        // paint one card slot with a bright square so it stitches
+        let mut page = assets::REFERENCE_PAGES_WIN[0].clone();
+        for y in 0..45 {
+            for x in 0..33 {
+                page.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+            }
+        }
+        session.pages.insert(0, page);
         let stitched = session.stitch(10).unwrap();
         assert!(stitched.width() > 0 && stitched.height() > 0);
     }

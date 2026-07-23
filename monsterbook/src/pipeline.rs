@@ -251,19 +251,11 @@ mod tests {
 
     #[test]
     fn test_transcribe_reference_pages() {
-        // transcribing the reference book against itself: every page matches
-        // its own index, and a mostly-unregistered book yields few entries
+        // the reference pages are crops of an *empty* book: transcribing
+        // them yields no entries at all — every card slot reads as empty
         let pages: Vec<Image> = assets::REFERENCE_PAGES_WIN.iter().cloned().collect();
         let entries = transcribe(&pages, &assets::BOOK, &WIN_HD);
-        assert!(entries.len() <= 538);
-        let offsets = assets::BOOK.offsets();
-        for entry in &entries {
-            assert!(entry.uid < *offsets.last().unwrap());
-            assert!(!entry.name.is_empty());
-            assert!(entry.count <= 5);
-        }
-        // the first page of the reference book has a seen snail
-        assert!(entries.iter().any(|e| e.name == "Snail"));
+        assert!(entries.is_empty());
     }
 
     #[test]
