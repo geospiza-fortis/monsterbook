@@ -1,7 +1,13 @@
 extern crate image;
 extern crate nshare;
 
+#[cfg(feature = "gui")]
 pub mod app;
-pub mod crop;
-pub mod stitch;
-pub mod utils;
+pub mod assets;
+pub mod book;
+pub mod layout;
+pub mod pipeline;
+pub mod session;
+pub mod vision;
+#[cfg(feature = "wasm")]
+pub mod wasm;
