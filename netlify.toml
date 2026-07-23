@@ -7,6 +7,9 @@
   command = "./netlify-build.sh"
 
 [build.environment]
+  # Override the site's stale NODE_VERSION=12 dashboard setting; vite 5
+  # needs node >= 18.
+  NODE_VERSION = "22"
   # Cache cargo artifacts between builds.
   CARGO_HOME = "/opt/build/cache/cargo"
   RUSTUP_HOME = "/opt/build/cache/rustup"
