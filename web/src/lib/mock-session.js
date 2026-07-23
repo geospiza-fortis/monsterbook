@@ -90,7 +90,7 @@ export class Session {
     return rows;
   }
 
-  stitch(cardsPerRow) {
+  stitch(cardsPerRow, includeEmpty = false) {
     // The real wasm module returns PNG bytes synchronously; the mock draws a
     // placeholder grid on an OffscreenCanvas. This is async, so callers should
     // `await` the result (harmless once the real module is sync).

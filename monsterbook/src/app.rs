@@ -204,7 +204,7 @@ impl<'a> epi::App for App {
                     thread::spawn(move || {
                         let iter = pages.iter().map(|(id, page)| (*id, page));
                         if let Some(image) =
-                            pipeline::stitch_page_cards(iter, cards_per_row, &WIN_HD)
+                            pipeline::stitch_page_cards(iter, cards_per_row, false, &WIN_HD)
                         {
                             sender.send((image, tag)).unwrap();
                         }
