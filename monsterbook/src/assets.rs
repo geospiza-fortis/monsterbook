@@ -17,7 +17,7 @@ fn decode_png(bytes: &[u8]) -> Image {
 /// The empty-card template: the per-pixel mean of all 650 card slots across
 /// the 26 empty-book pages in `data/processed/empty_new/` (see its
 /// REPORT.md), at native WIN_HD card scale (33x45). Replaces the original
-/// `empty_card.png` (still on disk, no longer compiled in), against which
+/// `empty_card.png` (removed; in git history), against which
 /// empty cards from the 800x600-client captures scored up to 2924 — well
 /// past the old 500 threshold.
 pub static EMPTY_CARD: Lazy<Image> =
@@ -49,7 +49,7 @@ pub static SEED_TAGS: Lazy<Vec<Image>> = Lazy::new(|| {
 /// resized from a higher-resolution source, so no rescale step is needed.
 ///
 /// Empty pages replace the `reference_v2` crops of a collected book
-/// (still on disk, no longer compiled in): page identity comes from the
+/// (removed; in branch history): page identity comes from the
 /// stable page chrome (tab ribbon, page label) rather than from
 /// user-specific card sprites, and this matters in practice. The collected
 /// set identified the 26 empty pages only 25/26 (empty page 03 matched

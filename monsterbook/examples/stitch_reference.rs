@@ -1,4 +1,4 @@
-//! Stitch the non-empty cards of the embedded reference_v2 pages into one
+//! Stitch the non-empty cards of the embedded reference pages into one
 //! grid PNG.
 use monsterbook::assets::REFERENCE_PAGES_WIN;
 use monsterbook::layout::{STITCH_CARDS_PER_ROW, WIN_HD};
