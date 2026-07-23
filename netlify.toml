@@ -1,0 +1,19 @@
+# Deploy the Vite/wasm web app (web/), not the legacy rollup app at the
+# repo root. The build image has no Rust toolchain, so bootstrap rustup,
+# the wasm32 target, and wasm-pack before building.
+[build]
+  base = "web"
+  publish = "dist"
+  command = """
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --target wasm32-unknown-unknown && \
+    . "$CARGO_HOME/env" && \
+    curl -sSfL https://github.com/rustwasm/wasm-pack/releases/download/v0.13.1/wasm-pack-v0.13.1-x86_64-unknown-linux-musl.tar.gz \
+      | tar -xz --strip-components=1 -C "$CARGO_HOME/bin" --wildcards '*/wasm-pack' && \
+    npm run build:wasm && \
+    npm run build
+  """
+
+[build.environment]
+  # Cache cargo artifacts between builds.
+  CARGO_HOME = "/opt/build/cache/cargo"
+  RUSTUP_HOME = "/opt/build/cache/rustup"
