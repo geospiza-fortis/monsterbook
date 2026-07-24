@@ -87,9 +87,12 @@ pub fn match_reference_page(img: &Image, reference_page: &Image) -> (u32, u32) {
 /// correlation first. On cluttered scenes the global argmax of the phase
 /// correlation surface can be a spurious peak, so callers should score each
 /// candidate crop (e.g. by NCC against the reference pages) and keep the
-/// best. Peaks within half a page of an already-taken peak are suppressed so
-/// adjacent cells of the same peak don't consume the budget, and offsets
-/// whose page crop would run out of bounds are skipped.
+/// best. Peaks within half a card (a tenth of a page) of an already-taken
+/// peak are suppressed so adjacent cells of the same peak don't consume the
+/// budget, while lattice-shifted peaks one card pitch away (common on sparse
+/// pages, where the periodic card grid yields near-equal correlation peaks)
+/// survive as separate candidates. Offsets whose page crop would run out of
+/// bounds are skipped.
 pub fn match_reference_page_candidates(
     img: &Image,
     reference_page: &Image,
@@ -118,7 +121,7 @@ pub fn match_reference_page_candidates(
             // non-maximum suppression against already-taken peaks
             if taken
                 .iter()
-                .any(|&(tx, ty)| (x - tx).abs() < page_w / 2 && (y - ty).abs() < page_h / 2)
+                .any(|&(tx, ty)| (x - tx).abs() < page_w / 10 && (y - ty).abs() < page_h / 10)
             {
                 continue;
             }
