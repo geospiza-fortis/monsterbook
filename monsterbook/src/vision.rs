@@ -75,25 +75,68 @@ pub fn pad_image(img: &Image, reference: &Image) -> Image {
 }
 
 /// Find the (x, y) offset of the reference page within the image via phase
-/// correlation.
+/// correlation (single strongest candidate).
 pub fn match_reference_page(img: &Image, reference_page: &Image) -> (u32, u32) {
+    match_reference_page_candidates(img, reference_page, 1)
+        .first()
+        .copied()
+        .unwrap_or((0, 0))
+}
+
+/// Top-k candidate offsets of the reference page within the image, strongest
+/// correlation first. On cluttered scenes the global argmax of the phase
+/// correlation surface can be a spurious peak, so callers should score each
+/// candidate crop (e.g. by NCC against the reference pages) and keep the
+/// best. Peaks within half a card (a tenth of a page) of an already-taken
+/// peak are suppressed so adjacent cells of the same peak don't consume the
+/// budget, while lattice-shifted peaks one card pitch away (common on sparse
+/// pages, where the periodic card grid yields near-equal correlation peaks)
+/// survive as separate candidates. Offsets whose page crop would run out of
+/// bounds are skipped.
+pub fn match_reference_page_candidates(
+    img: &Image,
+    reference_page: &Image,
+    k: usize,
+) -> Vec<(u32, u32)> {
     // pad the reference with the original image
     let reference = pad_image(reference_page, img);
     let mut gray_ref = into_grayscale_array(&reference).mapv(|x| Complex::new(x as f32, 0.0));
     let mut gray_img = into_grayscale_array(img).mapv(|x| Complex::new(x as f32, 0.0));
     phase_correlate(&mut gray_img, &mut gray_ref);
-    // find the location of the max value
-    // TODO: show the result of this matrix?
-    let mut maxpos = (0, 0);
-    let mut candidate = 0.0;
-    for (pos, cell) in gray_img.indexed_iter() {
-        let normed = cell.norm();
-        if normed > candidate {
-            candidate = normed;
-            maxpos = pos;
+    let (page_w, page_h) = (reference_page.width() as i64, reference_page.height() as i64);
+    let (max_x, max_y) = (
+        img.width() as i64 - page_w,
+        img.height() as i64 - page_h,
+    );
+    let mut taken: Vec<(i64, i64)> = Vec::new();
+    for _ in 0..k {
+        let mut maxpos: Option<(i64, i64)> = None;
+        let mut candidate = 0.0;
+        for (pos, cell) in gray_img.indexed_iter() {
+            let (y, x) = (pos.0 as i64, pos.1 as i64);
+            // the crop must fit entirely within the image
+            if x > max_x || y > max_y {
+                continue;
+            }
+            // non-maximum suppression against already-taken peaks
+            if taken
+                .iter()
+                .any(|&(tx, ty)| (x - tx).abs() < page_w / 10 && (y - ty).abs() < page_h / 10)
+            {
+                continue;
+            }
+            let normed = cell.norm();
+            if normed > candidate {
+                candidate = normed;
+                maxpos = Some((x, y));
+            }
+        }
+        match maxpos {
+            Some(p) => taken.push(p),
+            None => break,
         }
     }
-    (maxpos.1 as u32, maxpos.0 as u32)
+    taken.iter().map(|&(x, y)| (x as u32, y as u32)).collect()
 }
 
 pub fn crop_page(img: &mut Image, x: u32, y: u32, layout: &Layout) -> Image {

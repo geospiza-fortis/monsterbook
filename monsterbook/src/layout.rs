@@ -59,14 +59,24 @@ pub struct Layout {
     /// (`data/processed/reference_new/`, the worst-case card-content
     /// mismatch): every real page identifies correctly with NCC of at least
     /// 0.745, while a solid fill or random noise image scores ~0.0 against
-    /// every reference (NCC is undefined/zero for a constant image). 0.3
-    /// leaves comfortable margin on both sides while still being decisive
-    /// against non-book input.
+    /// every reference (NCC is undefined/zero for a constant image).
+    /// Mislocated crops of a real screenshot (e.g. after a slight non-integer
+    /// rescale defeats phase correlation) score 0.26-0.36 against *some*
+    /// reference, so 0.5 rejects them as `NoPageFound` instead of silently
+    /// matching a wrong page, while genuine well-located pages (0.745+)
+    /// still pass with margin.
     pub page_ncc_threshold: f64,
 }
 
 /// Cards per row when stitching all non-empty cards into one image.
 pub const STITCH_CARDS_PER_ROW: u32 = 24;
+
+/// Client window resolutions the game renders at. Screenshots whose
+/// dimensions are an exact integer multiple of one of these (Retina 2x,
+/// Windows display scaling at 200%/300%, ...) are downscaled back to 1x
+/// before page localization, since phase correlation only recovers
+/// translation, not scale.
+pub const CLIENT_RESOLUTIONS: [(u32, u32); 3] = [(800, 600), (1024, 768), (1366, 768)];
 
 pub const WIN_HD: Layout = Layout {
     page_width: 165,
@@ -84,7 +94,7 @@ pub const WIN_HD: Layout = Layout {
     tag_height: 9,
     unseen_mse_threshold: 3000,
     page_mse_threshold: 300,
-    page_ncc_threshold: 0.3,
+    page_ncc_threshold: 0.5,
 };
 
 #[cfg(test)]
