@@ -2,7 +2,7 @@
 //! which book page they contain rather than by filename order, so they can be
 //! added in any order, from any source (files, drag-and-drop, clipboard).
 use crate::assets;
-use crate::layout::{Layout, WIN_HD};
+use crate::layout::{Layout, CLIENT_RESOLUTIONS, WIN_HD};
 use crate::pipeline::{self, Entry};
 use crate::vision::{self, Image};
 use std::collections::BTreeMap;
@@ -15,7 +15,7 @@ pub enum IngestError {
     /// The bytes could not be decoded as an image.
     DecodeError,
     /// No monster book page was found in the image (the best reference-page
-    /// match exceeded `Layout::page_mse_threshold`).
+    /// match fell below `Layout::page_ncc_threshold`).
     NoPageFound,
 }
 
@@ -29,6 +29,42 @@ impl fmt::Display for IngestError {
 }
 
 impl std::error::Error for IngestError {}
+
+/// If the image is an exact integer multiple (2x..4x, same factor on both
+/// dimensions) of a known client resolution, resize it down to 1x so the
+/// translation-only page localization can work on it. Returns None for
+/// images already at (or not an integer multiple of) a known resolution.
+fn normalize_scale(img: &Image) -> Option<Image> {
+    for &(w, h) in CLIENT_RESOLUTIONS.iter() {
+        for factor in 2..=4u32 {
+            if img.width() == w * factor && img.height() == h * factor {
+                return Some(box_downscale(img, factor));
+            }
+        }
+    }
+    None
+}
+
+/// Downscale by an exact integer factor with a box filter (each output
+/// pixel is the mean of its factor x factor source block). For integer
+/// factors this is the ideal reconstruction and keeps pixel edges crisper
+/// than the general-purpose resamplers in `image::imageops::resize`.
+fn box_downscale(img: &Image, factor: u32) -> Image {
+    let (w, h) = (img.width() / factor, img.height() / factor);
+    let area = (factor * factor) as u32;
+    Image::from_fn(w, h, |x, y| {
+        let mut acc = [0u32; 4];
+        for dy in 0..factor {
+            for dx in 0..factor {
+                let p = img.get_pixel(x * factor + dx, y * factor + dy);
+                for c in 0..4 {
+                    acc[c] += p.0[c] as u32;
+                }
+            }
+        }
+        image::Rgba(acc.map(|v| ((v + area / 2) / area) as u8))
+    })
+}
 
 /// A collection of cropped book pages keyed by page_id, built up
 /// incrementally from screenshots.
@@ -84,6 +120,14 @@ impl Session {
     /// grayscale MSE against the embedded reference pages, and insert it
     /// (replacing any previous screenshot of the same page).
     fn ingest(&mut self, mut img: Image) -> Result<usize, IngestError> {
+        // Phase correlation only recovers translation, not scale, so a
+        // Retina/display-scaled screenshot (exactly 2x, 3x, ... of a known
+        // client resolution) is first resized back down to 1x. Non-integer
+        // or unknown sizes proceed unmodified and are rejected downstream by
+        // the NCC gate if the page can't be located.
+        if let Some(scaled) = normalize_scale(&img) {
+            img = scaled;
+        }
         if img.width() < self.layout.page_width || img.height() < self.layout.page_height {
             return Err(IngestError::NoPageFound);
         }
