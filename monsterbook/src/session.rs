@@ -131,12 +131,24 @@ impl Session {
         if img.width() < self.layout.page_width || img.height() < self.layout.page_height {
             return Err(IngestError::NoPageFound);
         }
-        let (x, y) = vision::match_reference_page(&img, &assets::REFERENCE_PAGE);
-        let page = vision::crop_page(&mut img, x, y, self.layout);
-        if page.width() != self.layout.page_width || page.height() != self.layout.page_height {
-            return Err(IngestError::NoPageFound);
+        // The global argmax of the correlation surface can be a spurious
+        // peak on cluttered scenes, so score the top candidate peaks by NCC
+        // against the reference pages and keep the best-scoring crop.
+        let candidates = vision::match_reference_page_candidates(&img, &assets::REFERENCE_PAGE, 10);
+        let mut best: Option<(usize, f64, Image)> = None;
+        for (x, y) in candidates {
+            let page = vision::crop_page(&mut img, x, y, self.layout);
+            if page.width() != self.layout.page_width || page.height() != self.layout.page_height {
+                continue;
+            }
+            let (page_id, ncc) = pipeline::match_max_ncc(&page, &assets::REFERENCE_PAGES_WIN);
+            if best.as_ref().map_or(true, |(_, b, _)| ncc > *b) {
+                best = Some((page_id, ncc, page));
+            }
         }
-        let (page_id, best_ncc) = pipeline::match_max_ncc(&page, &assets::REFERENCE_PAGES_WIN);
+        let Some((page_id, best_ncc, page)) = best else {
+            return Err(IngestError::NoPageFound);
+        };
         if best_ncc < self.layout.page_ncc_threshold {
             return Err(IngestError::NoPageFound);
         }
