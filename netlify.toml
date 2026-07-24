@@ -5,6 +5,10 @@
   base = "web"
   publish = "dist"
   command = "./netlify-build.sh"
+  # With base = "web", Netlify's default change detection only watches web/
+  # and cancels builds for commits that touch only the Rust crate the wasm
+  # is compiled from. Build when either web/ or monsterbook/ changed.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../monsterbook"
 
 [build.environment]
   # Override the site's stale NODE_VERSION=12 dashboard setting; vite 5
